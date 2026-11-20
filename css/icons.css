@@ -1,0 +1,33 @@
+/* Material Icons Round — 本地图标字体（128KB 左右，离线可用） */
+@font-face {
+  font-family: "Material Icons Round";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("../assets/fonts/material-icons-round.woff2") format("woff2");
+}
+
+.icon {
+  font-family: "Material Icons Round", sans-serif;
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  display: inline-block;
+  font-feature-settings: "liga";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  user-select: none;
+  vertical-align: middle;
+  color: inherit;
+}
+.icon--18 { font-size: 18px; }
+.icon--20 { font-size: 20px; }
+.icon--24 { font-size: 24px; }
+.icon--28 { font-size: 28px; }
+.icon--32 { font-size: 32px; }
+.icon--40 { font-size: 40px; }
+.icon--48 { font-size: 48px; }

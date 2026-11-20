@@ -1,0 +1,83 @@
+@import url("./tokens.generated.css");
+
+/* ==========================================================================
+   M3 令牌 — 形状 / 高度 / 字阶 / 动效 / 状态层 / 布局
+   颜色在 tokens.generated.css（由 tools/gen-tokens.mjs 从 MCU 生成）
+   ========================================================================== */
+:root {
+  /* ---------- 形状 ---------- */
+  --shape-none: 0px;
+  --shape-xs: 4px;
+  --shape-sm: 8px;
+  --shape-md: 12px;
+  --shape-lg: 16px;
+  --shape-xl: 28px;
+  --shape-full: 999px;
+
+  /* ---------- 高度（M3 level 0–5，带色调的软阴影） ---------- */
+  --elev-0: none;
+  --elev-1: 0 1px 2px 0 rgb(0 0 0 / .30), 0 1px 3px 1px rgb(0 0 0 / .15);
+  --elev-2: 0 1px 2px 0 rgb(0 0 0 / .30), 0 2px 6px 2px rgb(0 0 0 / .15);
+  --elev-3: 0 4px 8px 3px rgb(0 0 0 / .15), 0 1px 3px 0 rgb(0 0 0 / .30);
+  --elev-4: 0 6px 10px 4px rgb(0 0 0 / .15), 0 2px 3px 0 rgb(0 0 0 / .30);
+  --elev-5: 0 8px 12px 6px rgb(0 0 0 / .15), 0 4px 4px 0 rgb(0 0 0 / .30);
+
+  /* ---------- 字阶（M3 typescale） ---------- */
+  --ts-display-large-size: 3.5625rem;  --ts-display-large-lh: 4rem;      --ts-display-large-w: 400; --ts-display-large-ls: -.0156em;
+  --ts-display-medium-size: 2.8125rem; --ts-display-medium-lh: 3.25rem;  --ts-display-medium-w: 400; --ts-display-medium-ls: 0;
+  --ts-display-small-size: 2.25rem;    --ts-display-small-lh: 2.75rem;   --ts-display-small-w: 400; --ts-display-small-ls: 0;
+  --ts-headline-large-size: 2rem;      --ts-headline-large-lh: 2.5rem;   --ts-headline-large-w: 400; --ts-headline-large-ls: 0;
+  --ts-headline-medium-size: 1.75rem;  --ts-headline-medium-lh: 2.25rem; --ts-headline-medium-w: 400; --ts-headline-medium-ls: 0;
+  --ts-headline-small-size: 1.5rem;    --ts-headline-small-lh: 2rem;     --ts-headline-small-w: 400; --ts-headline-small-ls: 0;
+  --ts-title-large-size: 1.375rem;     --ts-title-large-lh: 1.75rem;     --ts-title-large-w: 500; --ts-title-large-ls: 0;
+  --ts-title-medium-size: 1rem;        --ts-title-medium-lh: 1.5rem;     --ts-title-medium-w: 500; --ts-title-medium-ls: .0094em;
+  --ts-title-small-size: .875rem;      --ts-title-small-lh: 1.25rem;     --ts-title-small-w: 500; --ts-title-small-ls: .0063em;
+  --ts-body-large-size: 1rem;          --ts-body-large-lh: 1.5rem;       --ts-body-large-w: 400; --ts-body-large-ls: .0313em;
+  --ts-body-medium-size: .875rem;      --ts-body-medium-lh: 1.25rem;     --ts-body-medium-w: 400; --ts-body-medium-ls: .0156em;
+  --ts-body-small-size: .75rem;        --ts-body-small-lh: 1rem;         --ts-body-small-w: 400; --ts-body-small-ls: .025em;
+  --ts-label-large-size: .875rem;      --ts-label-large-lh: 1.25rem;     --ts-label-large-w: 500; --ts-label-large-ls: .0063em;
+  --ts-label-medium-size: .75rem;      --ts-label-medium-lh: 1rem;       --ts-label-medium-w: 500; --ts-label-medium-ls: .0313em;
+  --ts-label-small-size: .6875rem;     --ts-label-small-lh: 1rem;        --ts-label-small-w: 500; --ts-label-small-ls: .0313em;
+
+  /* ---------- 动效（M3 expressive 缓动） ---------- */
+  --ease-emph: cubic-bezier(.2, 0, 0, 1);
+  --ease-emph-dec: cubic-bezier(.05, .7, .1, 1);
+  --ease-emph-acc: cubic-bezier(.3, 0, .8, .15);
+  --ease-std: cubic-bezier(.2, 0, 0, 1);
+  --ease-std-dec: cubic-bezier(0, 0, 0, 1);
+  --ease-std-acc: cubic-bezier(.3, 0, .8, .15);
+  --ease-spring: cubic-bezier(.34, 1.4, .64, 1);
+  --dur-1: 50ms; --dur-2: 100ms; --dur-3: 150ms; --dur-4: 200ms; --dur-5: 250ms; --dur-6: 300ms; --dur-7: 450ms; --dur-8: 600ms;
+
+  /* ---------- 状态层不透明度 ---------- */
+  --state-hover: .08;
+  --state-focus: .10;
+  --state-press: .10;
+  --state-drag: .16;
+  --state-disabled: .38;
+  --state-disabled-container: .12;
+
+  /* ---------- 布局 ---------- */
+  --nav-w: 232px;
+  --navbar-h: 80px;
+  --topbar-h: 64px;
+  --mini-h: 64px;
+  --maxw: 1120px;
+  --gutter: 20px;
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
+
+  /* 行高（列表密度可调） */
+  --row-h: 64px;
+  --art-sm: 44px;
+  --art-md: 48px;
+  --art-lg: 56px;
+  --art-xl: 88px;
+
+  --font-ui: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  --font-num: ui-rounded, system-ui, sans-serif;
+}
+
+@media (min-width: 840px) {
+  :root { --gutter: 32px; --row-h: 64px; }
+}

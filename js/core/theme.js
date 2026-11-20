@@ -1,0 +1,119 @@
+/* MD3 动态配色：种子色 -> 全量颜色角色（MCU / HCT） */
+import {
+  Hct, MaterialDynamicColors, SchemeTonalSpot, SchemeContent, SchemeFidelity,
+  hexFromArgb, argbFromHex, sourceColorFromImage,
+} from '../../vendor/mcu.js';
+
+const ROLES = ['primary','onPrimary','primaryContainer','onPrimaryContainer','inversePrimary',
+  'secondary','onSecondary','secondaryContainer','onSecondaryContainer',
+  'tertiary','onTertiary','tertiaryContainer','onTertiaryContainer',
+  'error','onError','errorContainer','onErrorContainer',
+  'background','onBackground','surface','onSurface','surfaceVariant','onSurfaceVariant',
+  'surfaceDim','surfaceBright','surfaceContainerLowest','surfaceContainerLow','surfaceContainer',
+  'surfaceContainerHigh','surfaceContainerHighest','inverseSurface','inverseOnSurface',
+  'outline','outlineVariant','shadow','scrim','surfaceTint'];
+
+export const DEFAULT_SEED = '#0f6b72';
+
+export const SEED_PRESETS = [
+  { hex: '#0f6b72', name: '湖青' },
+  { hex: '#3f6b52', name: '苔绿' },
+  { hex: '#43608c', name: '湖蓝' },
+  { hex: '#5b5a92', name: '暮紫' },
+  { hex: '#94506b', name: '绛梅' },
+  { hex: '#8a6437', name: '琥珀' },
+  { hex: '#4c5a6b', name: '石板' },
+  { hex: '#a4472f', name: '赤陶' },
+];
+
+export const VARIANTS = [
+  { key: 'tonal', name: '色调', desc: 'M3 默认，柔和均衡' },
+  { key: 'content', name: '内容', desc: '贴近种子原色' },
+  { key: 'fidelity', name: '保真', desc: '最大程度保留种子色' },
+];
+
+const kebab = (s) => s.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase());
+
+export function normalizeSeed(input) {
+  let s = String(input == null ? '' : input).trim().toLowerCase();
+  if (s && s[0] !== '#') s = '#' + s;
+  if (/^#[0-9a-f]{3}$/.test(s)) s = '#' + s[1] + s[1] + s[2] + s[2] + s[3] + s[3];
+  if (!/^#[0-9a-f]{6}$/.test(s)) return DEFAULT_SEED;
+  return s;
+}
+
+export function isValidSeed(input) {
+  let s = String(input == null ? '' : input).trim().toLowerCase();
+  if (s && s[0] !== '#') s = '#' + s;
+  return /^#([0-9a-f]{3}|[0-9a-f]{6})$/.test(s);
+}
+
+export function schemeVars(seed, dark, variant = 'tonal') {
+  const Scheme = variant === 'content' ? SchemeContent : variant === 'fidelity' ? SchemeFidelity : SchemeTonalSpot;
+  const scheme = new Scheme(Hct.fromInt(argbFromHex(normalizeSeed(seed))), !!dark, 0);
+  const out = {};
+  for (const role of ROLES) {
+    const dc = MaterialDynamicColors[role];
+    if (dc) out['--md-sys-color-' + kebab(role)] = hexFromArgb(dc.getArgb(scheme));
+  }
+  return out;
+}
+
+export function systemDark() {
+  return window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+
+export function resolveDark(mode) {
+  return mode === 'dark' || (mode !== 'light' && systemDark());
+}
+
+let current = { seed: DEFAULT_SEED, mode: 'system', variant: 'tonal' };
+let mediaBound = false;
+
+export function currentTheme() { return { ...current }; }
+
+export function applyTheme(next = {}) {
+  current = { ...current, ...next };
+  current.seed = normalizeSeed(current.seed);
+  const dark = resolveDark(current.mode);
+  const root = document.documentElement;
+  const vars = schemeVars(current.seed, dark, current.variant);
+  for (const [k, v] of Object.entries(vars)) root.style.setProperty(k, v);
+  root.dataset.theme = dark ? 'dark' : 'light';
+  root.style.colorScheme = dark ? 'dark' : 'light';
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta && vars['--md-sys-color-surface']) meta.setAttribute('content', vars['--md-sys-color-surface']);
+
+  if (!mediaBound) {
+    mediaBound = true;
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const onChange = () => { if (current.mode === 'system') applyTheme({}); };
+    if (mq.addEventListener) mq.addEventListener('change', onChange);
+    else if (mq.addListener) mq.addListener(onChange);
+  }
+  return { dark, vars };
+}
+
+/** 从封面取主色（Monet 取色）；取不到返回 null */
+export function sourceColorFromUrl(url) {
+  return new Promise((resolve) => {
+    if (!url) return resolve(null);
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.decoding = 'async';
+    img.referrerPolicy = 'no-referrer';
+    let settled = false;
+    const done = (value) => { if (!settled) { settled = true; resolve(value); } };
+    const timer = setTimeout(() => done(null), 12000);
+    img.onload = () => {
+      clearTimeout(timer);
+      try {
+        if (!img.naturalWidth) return done(null);
+        const argb = sourceColorFromImage(img, { maxImageSize: 112 });
+        done(argb ? hexFromArgb(argb) : null);
+      } catch { done(null); }
+    };
+    img.onerror = () => { clearTimeout(timer); done(null); };
+    img.src = url;
+  });
+}

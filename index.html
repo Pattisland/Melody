@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Melody</title>
+<meta name="description" content="Melody — 在线音乐搜索、播放与收藏">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#0f6b72">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./assets/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="./assets/icon.svg">
+<link rel="stylesheet" href="./css/tokens.css">
+<link rel="stylesheet" href="./css/icons.css">
+<link rel="stylesheet" href="./css/app.css">
+</head>
+<body>
+  <a class="skip" href="#page">跳到内容</a>
+
+  <div class="app" id="app">
+    <nav class="nav" id="nav" aria-label="主导航">
+      <div class="nav__brand" aria-hidden="true">
+        <img class="nav__logo" src="./assets/icon.svg" alt="" width="40" height="40">
+        <span class="nav__wordmark">Melody</span>
+      </div>
+      <a class="nav__item" href="#/search" data-dest="search">
+        <span class="nav__ind" aria-hidden="true"></span>
+        <span class="icon nav__icon" aria-hidden="true">search</span>
+        <span class="nav__label">搜索</span>
+      </a>
+      <a class="nav__item" href="#/library" data-dest="library">
+        <span class="nav__ind" aria-hidden="true"></span>
+        <span class="icon nav__icon" aria-hidden="true">library_music</span>
+        <span class="nav__label">曲库</span>
+      </a>
+      <a class="nav__item" href="#/me" data-dest="me">
+        <span class="nav__ind" aria-hidden="true"></span>
+        <span class="icon nav__icon" aria-hidden="true">person</span>
+        <span class="nav__label">我的</span>
+      </a>
+    </nav>
+
+    <div class="app__body">
+      <header class="topbar" id="topbar"></header>
+      <main class="page" id="page" tabindex="-1"></main>
+    </div>
+  </div>
+
+  <div class="dock" id="dock" hidden></div>
+
+  <div class="sheet-root" id="sheet-root"></div>
+  <div class="dialog-root" id="dialog-root"></div>
+  <div class="snackbar-host" id="snackbar-host" role="status" aria-live="polite"></div>
+
+  <audio id="audio" preload="metadata" crossorigin="anonymous"></audio>
+  <script type="module" src="./js/main.js"></script>
+</body>
+</html>

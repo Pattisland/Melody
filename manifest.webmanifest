@@ -1,0 +1,18 @@
+{
+  "name": "Melody",
+  "short_name": "Melody",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0f6b72",
+  "theme_color": "#0f6b72",
+  "description": "在线音乐搜索、播放与收藏",
+  "icons": [
+    {
+      "src": "./assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
