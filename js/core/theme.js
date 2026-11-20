@@ -135,9 +135,12 @@ export async function sourceColorFromUrl(urls, options = {}) {
     const color = await extractOnce(url, 5000);
     if (color) return color;
   }
-  // 自读失败（常见于 QQ 音乐 CDN：不带 ACAO）时，借一次图片代理，结果会缓存下来
+  // 自读失败（常见于 QQ 音乐 CDN：不带 ACAO）时，逐个借图片代理试，结果会缓存下来
   if (options.proxy !== false && list.length) {
-    return extractOnce(proxied(list[0]), 6000);
+    for (const url of list.slice(0, 3)) {
+      const color = await extractOnce(proxied(url), 6000);
+      if (color) return color;
+    }
   }
   return null;
 }

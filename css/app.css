@@ -680,21 +680,24 @@ body[data-detail="true"] .dock { bottom: calc(8px + var(--safe-b)); }
 .player__times { display: flex; justify-content: space-between; font-size: var(--ts-label-small-size); color: var(--md-sys-color-on-surface-variant); }
 .player__controls { display: flex; align-items: center; justify-content: center; gap: 12px; flex: 0 0 auto; padding: 4px 0 8px; }
 .player__aux { display: flex; align-items: center; justify-content: space-between; flex: 0 0 auto; }
-.player__tabs { display: flex; justify-content: center; gap: 4px; flex: 0 0 auto; align-self: center; margin: 6px 0 0; }
-.player__tab {
+/* 下划线标签：播放器视图切换与搜索结果分栏共用 */
+.tabbar { display: flex; gap: 4px; flex: 0 0 auto; }
+.tabbar--center { justify-content: center; align-self: center; margin: 6px 0 0; }
+.tabbar__tab {
   position: relative; border: 0; background: none; cursor: pointer;
-  padding: 12px 20px 14px;
+  padding: 10px 16px 12px;
   color: var(--md-sys-color-on-surface-variant);
   font-family: inherit; font-size: var(--ts-title-small-size); font-weight: 600; line-height: 1;
   transition: color var(--dur-3) var(--ease-std);
 }
-.player__tab::after {
+.tabbar--center .tabbar__tab { padding: 12px 20px 14px; }
+.tabbar__tab::after {
   content: ""; position: absolute; left: 12px; right: 12px; bottom: 0; height: 3px;
   border-radius: 3px 3px 0 0; background: transparent;
   transition: background-color var(--dur-3) var(--ease-std);
 }
-.player__tab[aria-selected="true"] { color: var(--md-sys-color-primary); }
-.player__tab[aria-selected="true"]::after { background: var(--md-sys-color-primary); }
+.tabbar__tab[aria-selected="true"] { color: var(--md-sys-color-primary); }
+.tabbar__tab[aria-selected="true"]::after { background: var(--md-sys-color-primary); }
 .player__bg--plain { display: none; }
 .player__lyrics { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; justify-content: center; gap: 14px; padding: 8px 0; text-align: center; }
 .player__lyrics .line { font-size: var(--ts-title-medium-size); color: var(--md-sys-color-on-surface-variant); opacity: .55; transition: opacity var(--dur-4), color var(--dur-4), transform var(--dur-4) var(--ease-emph); }
@@ -714,6 +717,7 @@ body[data-detail="true"] .dock { bottom: calc(8px + var(--safe-b)); }
    首页 hero
    -------------------------------------------------------------------------- */
 .hero { padding: 24px 0 8px; display: flex; flex-direction: column; gap: 24px; }
+.home-narrow { width: 100%; max-width: 680px; margin: 0 auto; }
 .hero__brand {
   font-size: clamp(2.5rem, 7.2vw, 3.75rem);
   line-height: 1.04; font-weight: 600; letter-spacing: -.03em;

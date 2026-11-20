@@ -73,9 +73,9 @@ function renderPlayer() {
           icon(showTabs ? 'fullscreen_exit' : 'fullscreen') + '</button>' +
       '</div>' +
       (showTabs
-        ? '<div class="player__tabs" role="tablist" aria-label="播放器视图">' +
-            '<button class="player__tab" role="tab" data-view="cover" aria-selected="' + (viewMode === 'cover') + '">封面</button>' +
-            '<button class="player__tab" role="tab" data-view="lyrics" aria-selected="' + (viewMode === 'lyrics') + '">歌词</button>' +
+        ? '<div class="tabbar tabbar--center" role="tablist" aria-label="播放器视图">' +
+            '<button class="tabbar__tab" role="tab" data-view="cover" aria-selected="' + (viewMode === 'cover') + '">封面</button>' +
+            '<button class="tabbar__tab" role="tab" data-view="lyrics" aria-selected="' + (viewMode === 'lyrics') + '">歌词</button>' +
           '</div>'
         : '') +
       '<div class="player__stage" data-stage>' +

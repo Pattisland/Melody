@@ -38,7 +38,9 @@ async function syncCoverTheme() {
   if (token !== coverToken) return;
   let color = cached;
   if (!color) {
-    const candidates = artworkCandidates(track, 300);
+    // 能读到像素的封面优先：网易云的 CDN 带 ACAO，QQ/酷狗不带
+    const rank = (url) => (/server=netease|music\.126\.net/i.test(url) ? 3 : (/audius|doubanio|hdslb/i.test(url) ? 2 : 1));
+    const candidates = artworkCandidates(track, 300).sort((a, b) => rank(b) - rank(a));
     color = await sourceColorFromUrl(candidates);
     if (token !== coverToken) return;
     if (color) saveTrackColor(track.id, color).catch(() => {});

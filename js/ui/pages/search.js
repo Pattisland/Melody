@@ -22,6 +22,7 @@ async function renderHome(root) {
   const profileId = store.state.profileId;
   const history = await listSearches(profileId, 24);
   root.innerHTML =
+    '<div class="home-narrow">' +
     '<div class="hero">' +
       '<h1 class="hero__brand">Melody</h1>' +
       '<p class="hero__sub">搜索并播放你想要的音乐</p>' +
@@ -35,7 +36,8 @@ async function renderHome(root) {
           '<span class="chip__text">' + esc(row.term) + '</span>' +
           '<button class="icon-btn" style="width:24px;height:24px" data-remove="' + esc(row.id) + '" aria-label="删除这条记录">' +
           icon('close', 'icon--18') + '</button></span>').join('') + '</div></div>'
-      : '<div class="section"><div class="state-hint">还没有搜索记录。搜过并且点开听过的关键词会留在这里。</div></div>');
+      : '<div class="section"><div class="state-hint">还没有搜索记录。搜过并且点开听过的关键词会留在这里。</div></div>') +
+    '</div>';
 
   const form = root.querySelector('[data-search-form]');
   form.addEventListener('submit', (event) => {
@@ -94,9 +96,9 @@ function renderResults(root) {
   head.innerHTML =
     '<div class="row gap-8" style="justify-content:space-between;flex-wrap:wrap">' +
       (showTabs
-        ? '<div class="segmented" data-tabs>' +
-            '<button class="segmented__item" data-tab="songs" aria-selected="' + (pageState.tab === 'songs') + '">' + icon('music_note') + '歌曲</button>' +
-            '<button class="segmented__item" data-tab="artists" aria-selected="' + (pageState.tab === 'artists') + '">' + icon('person') + '歌手</button>' +
+        ? '<div class="tabbar" data-tabs role="tablist" aria-label="结果分类">' +
+            '<button class="tabbar__tab" role="tab" data-tab="songs" aria-selected="' + (pageState.tab === 'songs') + '">' + icon('music_note') + '歌曲</button>' +
+            '<button class="tabbar__tab" role="tab" data-tab="artists" aria-selected="' + (pageState.tab === 'artists') + '">' + icon('person') + '歌手</button>' +
           '</div>'
         : '<span class="t-label-l muted">' + (pageState.tracks.length ? '找到 ' + pageState.tracks.length + ' 首' : '') + '</span>') +
       (pageState.failed.length ? '<span class="t-body-s muted" data-failed title="' + esc(pageState.failed.map((f) => f.label + '：' + f.error).join(' / ')) + '">' +
