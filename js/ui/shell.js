@@ -13,6 +13,11 @@ function modeIcon(mode) {
   return mode === 'one' ? 'repeat_one' : 'repeat';
 }
 
+function blurEnabled() {
+  const settings = store.state.settings || {};
+  return settings['prefs.blurBg'] !== false;
+}
+
 function renderDock() {
   const state = store.state.player;
   const dock = els.dock;
@@ -47,28 +52,36 @@ function renderPlayer() {
 
   const lines = player.lyrics;
   const active = activeLineIndex(lines.lines, state.current);
-  const window_ = 2;
+  const from = Math.max(0, active - 2);
   const lyricsHtml = lines.loading
     ? '<div class="t-body-m muted">歌词加载中…</div>'
     : lines.lines.length
-      ? lines.lines.slice(Math.max(0, active - window_), active + window_ + 1).map((line, index) => {
-          const real = Math.max(0, active - window_) + index;
-          return '<div class="line' + (real === active ? ' is-active' : '') + '">' + esc(line.text || '·') + '</div>';
-        }).join('')
+      ? lines.lines.slice(from, active + 3).map((line, index) =>
+          '<div class="line' + (from + index === active ? ' is-active' : '') + '">' + esc(line.text || '·') + '</div>').join('')
       : '<div class="t-body-m muted">' + esc(lines.error || '暂无歌词') + '</div>';
 
+  const showTabs = state.mode === 'full';
+
   node.innerHTML =
-    '<div class="player__bg">' + (art ? '<img src="' + esc(art) + '" alt="" data-cover>' : '') + '</div>' +
+    (blurEnabled() && art ? '<div class="player__bg"><img src="' + esc(art) + '" alt="" data-cover></div>' : '<div class="player__bg player__bg--plain"></div>') +
     '<div class="player__inner">' +
       '<div class="player__top">' +
-        '<button class="icon-btn" data-collapse aria-label="收起">' + icon(state.mode === 'full' ? 'keyboard_arrow_down' : 'expand_more') + '</button>' +
-        '<div class="player__top-title">' + esc(state.mode === 'full' ? '正在播放' : '正在播放') + '</div>' +
-        (state.mode === 'full' ? '<button class="icon-btn" data-expand aria-label="全屏">' + icon('fullscreen') + '</button>'
-                               : '<button class="icon-btn" data-expand aria-label="全屏">' + icon('open_in_full') + '</button>') +
+        '<button class="icon-btn" data-collapse aria-label="收起">' + icon('keyboard_arrow_down') + '</button>' +
+        '<div class="player__top-title">正在播放</div>' +
+        '<button class="icon-btn" data-more aria-label="更多">' + icon('more_vert') + '</button>' +
+        '<button class="icon-btn" data-expand aria-label="' + (showTabs ? '半屏' : '全屏') + '">' +
+          icon(showTabs ? 'fullscreen_exit' : 'fullscreen') + '</button>' +
       '</div>' +
+      (showTabs
+        ? '<div class="player__tabs" role="tablist" aria-label="播放器视图">' +
+            '<button class="player__tab" role="tab" data-view="cover" aria-selected="' + (viewMode === 'cover') + '">封面</button>' +
+            '<button class="player__tab" role="tab" data-view="lyrics" aria-selected="' + (viewMode === 'lyrics') + '">歌词</button>' +
+          '</div>'
+        : '') +
       '<div class="player__stage" data-stage>' +
-        (state.mode === 'full' && viewMode === 'lyrics' ? '<div class="player__lyrics">' + lyricsHtml + '</div>'
-          : '<div class="player__cover">' + (art ? '<img src="' + esc(art) + '" alt="" data-cover>' : icon('music_note', 'icon--72')) + '</div>') +
+        (showTabs && viewMode === 'lyrics'
+          ? '<div class="player__lyrics">' + lyricsHtml + '</div>'
+          : '<div class="player__cover">' + icon('music_note', 'icon--72') + (art ? '<img src="' + esc(art) + '" alt="" data-cover>' : '') + '</div>') +
       '</div>' +
       '<div class="player__meta"><div class="player__title">' + esc(track.title) + '</div>' +
         '<div class="player__artist">' + esc(track.artist || '未知歌手') + '</div></div>' +
@@ -83,10 +96,6 @@ function renderPlayer() {
         '<button class="icon-btn icon-btn--lg" data-next aria-label="下一首">' + icon('skip_next') + '</button>' +
         '<button class="icon-btn" data-repeat aria-label="循环模式">' + icon(modeIcon(state.repeat)) + '</button>' +
       '</div>' +
-      (state.mode === 'full' ? '<div class="player__aux"><div class="segmented" data-views>' +
-        '<button class="segmented__item" data-view="cover" aria-selected="' + (viewMode === 'cover') + '">' + icon('album') + '封面</button>' +
-        '<button class="segmented__item" data-view="lyrics" aria-selected="' + (viewMode === 'lyrics') + '">' + icon('lyrics') + '歌词</button>' +
-        '</div><button class="icon-btn" data-more aria-label="更多">' + icon('more_vert') + '</button></div>' : '') +
     '</div>';
 
   const seek = node.querySelector('[data-seek]');
@@ -95,6 +104,7 @@ function renderPlayer() {
     const value = Number(seek.value);
     const current = node.querySelector('[data-time-current]');
     if (current) current.textContent = fmtTime(value);
+    seek.style.setProperty('--p', (state.duration ? (value / state.duration) * 100 : 0) + '%');
   });
   seek.addEventListener('change', () => player.seekTo(Number(seek.value)));
   node.querySelector('[data-collapse]').addEventListener('click', () => setMode('mini'));
@@ -104,8 +114,7 @@ function renderPlayer() {
   node.querySelector('[data-prev]').addEventListener('click', () => player.prev());
   node.querySelector('[data-shuffle]').addEventListener('click', () => { player.toggleShuffle(); renderPlayer(); });
   node.querySelector('[data-repeat]').addEventListener('click', () => { player.cycleRepeat(); renderPlayer(); });
-  const more = node.querySelector('[data-more]');
-  if (more) more.addEventListener('click', () => openTrackMenu(track));
+  node.querySelector('[data-more]').addEventListener('click', () => openTrackMenu(track));
   node.querySelectorAll('[data-view]').forEach((button) => {
     button.addEventListener('click', () => { viewMode = button.dataset.view; renderPlayer(); });
   });
@@ -135,19 +144,13 @@ function updateProgress() {
   if (current) current.textContent = fmtTime(state.current);
   if (total) total.textContent = fmtTime(state.duration);
   if (seek && seek.max !== String(state.duration || 0)) seek.max = String(state.duration || 0);
-  const bg = els.player.querySelector('.player__bg img');
-  if (bg && state.track) {
-    const art = artworkFor(state.track);
-    if (art && bg.getAttribute('src') !== art) bg.setAttribute('src', art);
-  }
   if (viewMode === 'lyrics' && state.mode === 'full') {
     const holder = els.player.querySelector('.player__lyrics');
     if (holder) {
       const active = activeLineIndex(player.lyrics.lines, state.current);
-      const nodes = holder.querySelectorAll('.line');
-      nodes.forEach((node, index) => {
-        const real = Math.max(0, active - 2) + index;
-        node.classList.toggle('is-active', real === active);
+      const from = Math.max(0, active - 2);
+      holder.querySelectorAll('.line').forEach((node, index) => {
+        node.classList.toggle('is-active', from + index === active);
       });
     }
   }
@@ -180,6 +183,11 @@ export function mountShell() {
     renderDock();
     renderPlayer();
     updateProgress();
+  });
+
+  store.subscribe((state, changed) => {
+    if (!changed.includes('settings')) return;
+    if (state.player.mode !== 'mini') renderPlayer();
   });
 
   els.dock.addEventListener('click', (event) => {

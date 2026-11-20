@@ -126,9 +126,13 @@ export async function lyricsFor(track, settings, options = {}) {
   return '';
 }
 
-export function artworkCandidates(track) {
+export function artworkCandidates(track, size) {
   const list = [];
-  const push = (url) => { if (url && list.indexOf(url) < 0) list.push(url); };
+  const push = (url) => {
+    if (!url) return;
+    const sized = size ? url.replace(/param=\d+y\d+/, 'param=' + size + 'y' + size) : url;
+    if (list.indexOf(sized) < 0) list.push(sized);
+  };
   push(track.artwork);
   for (const ref of track.sources || []) push(ref.artwork);
   return list;

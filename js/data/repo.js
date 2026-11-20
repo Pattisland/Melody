@@ -13,6 +13,9 @@ export const DEFAULT_SETTINGS = {
   'prefs.historyLimit': 300,
   'prefs.autoCache': false,
   'prefs.reduceMotion': false,
+  'prefs.blurBg': true,
+  'prefs.density': 'comfortable',
+  'prefs.notifyCache': true,
 };
 
 export async function loadSettings() {
@@ -116,6 +119,17 @@ export async function upsertTrack(track) {
 
 export async function getTrack(id) {
   return idb.get('tracks', id);
+}
+
+/* 封面取色结果缓存：同一首只算一次 */
+export async function getTrackColor(trackId) {
+  const row = await idb.get('colors', trackId);
+  return row ? row.hex : '';
+}
+
+export async function saveTrackColor(trackId, hex) {
+  if (!trackId || !hex) return;
+  await idb.put('colors', { id: trackId, hex, at: Date.now() });
 }
 
 export async function getCachedTrack(profileId, trackId) {

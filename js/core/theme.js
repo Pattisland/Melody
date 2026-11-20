@@ -94,26 +94,50 @@ export function applyTheme(next = {}) {
   return { dark, vars };
 }
 
-/** 从封面取主色（Monet 取色）；取不到返回 null */
-export function sourceColorFromUrl(url) {
+function loadImage(url, timeout) {
   return new Promise((resolve) => {
-    if (!url) return resolve(null);
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.decoding = 'async';
     img.referrerPolicy = 'no-referrer';
     let settled = false;
     const done = (value) => { if (!settled) { settled = true; resolve(value); } };
-    const timer = setTimeout(() => done(null), 12000);
-    img.onload = () => {
-      clearTimeout(timer);
-      try {
-        if (!img.naturalWidth) return done(null);
-        const argb = sourceColorFromImage(img, { maxImageSize: 112 });
-        done(argb ? hexFromArgb(argb) : null);
-      } catch { done(null); }
-    };
+    const timer = setTimeout(() => done(null), timeout);
+    img.onload = () => { clearTimeout(timer); done(img.naturalWidth ? img : null); };
     img.onerror = () => { clearTimeout(timer); done(null); };
     img.src = url;
   });
+}
+
+async function extractOnce(url, timeout) {
+  if (!url) return null;
+  const img = await loadImage(url, timeout);
+  if (!img) return null;
+  try {
+    const argb = await sourceColorFromImage(img, { maxImageSize: 112 });
+    return argb ? hexFromArgb(argb) : null;
+  } catch { return null; }
+}
+
+/**
+ * 从封面取主色（Monet 取色）。可传多个候选，按顺序试第一个能读到像素的。
+ * 只有带 Access-Control-Allow-Origin 的封面才能取色（网易云可以，QQ 音乐 CDN 不行）。
+ */
+const IMAGE_PROXY = 'https://wsrv.nl/?url=';
+
+function proxied(url) {
+  return IMAGE_PROXY + encodeURIComponent(url) + '&w=64&h=64&fit=cover&output=jpg&we';
+}
+
+export async function sourceColorFromUrl(urls, options = {}) {
+  const list = (Array.isArray(urls) ? urls : [urls]).filter(Boolean).slice(0, 4);
+  for (const url of list) {
+    const color = await extractOnce(url, 5000);
+    if (color) return color;
+  }
+  // 自读失败（常见于 QQ 音乐 CDN：不带 ACAO）时，借一次图片代理，结果会缓存下来
+  if (options.proxy !== false && list.length) {
+    return extractOnce(proxied(list[0]), 6000);
+  }
+  return null;
 }

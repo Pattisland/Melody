@@ -216,10 +216,12 @@ async function renderTheme(root) {
         '<input class="input" data-hex-input value="' + esc(theme.seed) + '" style="height:48px;flex:1" aria-label="十六进制颜色">' +
         '<button class="btn btn--tonal" data-apply-hex>应用</button>' +
       '</div>' +
+      '<p class="t-body-s muted" style="padding:4px 20px 0">封面取色需要封面允许跨源读取。网易云封面通常可以；QQ/酷狗封面偶尔取不到，此时保持你选的颜色。</p>' +
       '<div class="divider"></div>' +
       '<div class="list-item" style="cursor:default"><div class="list-item__art list-item__art--icon">' + icon('palette') + '</div>' +
         '<div class="list-item__body"><div class="list-item__title">跟随封面取色</div>' +
-        '<div class="list-item__sub">播放时用封面主色临时接管主题</div></div>' +
+        '<div class="list-item__sub">全局生效：每次切歌都用封面主色重算整套配色' +
+        (theme.fromCover && theme.coverSeed ? ' · 当前 ' + esc(theme.coverSeed) : '') + '</div></div>' +
         '<label class="switch"><input type="checkbox" data-cover ' + (theme.fromCover ? 'checked' : '') + '><span class="switch__track"></span><span class="switch__thumb"></span></label>' +
       '</div>' +
     '</div>';
@@ -304,6 +306,49 @@ async function renderSources(root) {
   }));
 }
 
+/* ------------------------------ 偏好设置 ------------------------------ */
+
+function prefSwitch(key, label, hint, value) {
+  return '<div class="list-item" style="cursor:default">' +
+    '<div class="list-item__body"><div class="list-item__title">' + esc(label) + '</div>' +
+    '<div class="list-item__sub">' + esc(hint) + '</div></div>' +
+    '<label class="switch"><input type="checkbox" data-pref="' + esc(key) + '"' + (value ? ' checked' : '') + '>' +
+    '<span class="switch__track"></span><span class="switch__thumb"></span></label></div>';
+}
+
+async function renderPrefs(root) {
+  const settings = store.state.settings;
+  const density = settings['prefs.density'] || 'comfortable';
+  root.innerHTML =
+    '<div class="group">' +
+      '<div class="group__label">播放器</div>' +
+      prefSwitch('prefs.blurBg', '模糊封面背景', '用当前封面的模糊图垫在全屏播放器后面', settings['prefs.blurBg'] !== false) +
+      prefSwitch('prefs.notifyCache', '完成提示', '缓存与下载结束时提示一条', settings['prefs.notifyCache'] !== false) +
+    '</div>' +
+    '<div class="group">' +
+      '<div class="group__label">外观</div>' +
+      '<div class="list-item" style="cursor:default"><div class="list-item__body">' +
+        '<div class="list-item__title">列表密度</div><div class="list-item__sub">紧凑会缩小行高与封面</div></div></div>' +
+      '<div style="padding:0 20px 12px"><div class="segmented" data-density>' +
+        [['comfortable', '舒适'], ['compact', '紧凑']].map(([key, label]) =>
+          '<button class="segmented__item" data-value="' + key + '" aria-selected="' + (density === key) + '">' + label + '</button>').join('') +
+      '</div></div>' +
+      prefSwitch('prefs.reduceMotion', '减少动画', '关掉页面切换与过渡动效', Boolean(settings['prefs.reduceMotion'])) +
+    '</div>';
+
+  async function set(key, value) {
+    await saveSettings({ [key]: value });
+    store.set({ settings: { ...store.state.settings, [key]: value } });
+  }
+
+  root.querySelectorAll('[data-pref]').forEach((input) => {
+    input.addEventListener('change', () => set(input.dataset.pref, input.checked));
+  });
+  root.querySelectorAll('[data-density] .segmented__item').forEach((button) => {
+    button.addEventListener('click', async () => { await set('prefs.density', button.dataset.value); renderPrefs(root); });
+  });
+}
+
 /* ------------------------------ 其它 ------------------------------ */
 
 function renderStub(root, ctx) {
@@ -329,7 +374,7 @@ export const meRoutes = [
   { path: '/me/profile', level: 2, title: '个人资料', mount: renderProfile },
   { path: '/me/theme', level: 2, title: '主题配色', mount: renderTheme },
   { path: '/me/sources', level: 2, title: '来源设置', mount: renderSources },
-  { path: '/me/prefs', level: 2, title: '偏好设置', mount: renderStub },
+  { path: '/me/prefs', level: 2, title: '偏好设置', mount: renderPrefs },
   { path: '/me/tasks', level: 2, title: '任务进度', mount: renderStub },
   { path: '/me/data', level: 2, title: '数据管理', mount: renderStub },
   { path: '/me/about', level: 2, title: '关于', mount: renderAbout },

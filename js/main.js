@@ -3,11 +3,11 @@ import { store, on } from './core/store.js';
 import { router } from './core/router.js';
 import { applyTheme, sourceColorFromUrl } from './core/theme.js';
 import { openDb } from './data/db.js';
-import { loadSettings, ensureActiveProfile } from './data/repo.js';
+import { loadSettings, ensureActiveProfile, getTrackColor, saveTrackColor } from './data/repo.js';
 import { mountShell } from './ui/shell.js';
 import { installCoverFallback, toast } from './ui/components.js';
 import { player } from './player/player.js';
-import { artworkFor } from './sources/registry.js';
+import { artworkCandidates } from './sources/registry.js';
 import { requestPersistentStorage } from './core/util.js';
 import searchPage from './ui/pages/search.js';
 import { libraryRoutes } from './ui/pages/library.js';
@@ -15,23 +15,48 @@ import { meRoutes } from './ui/pages/me.js';
 
 let coverToken = 0;
 let coverActive = false;
+let lastCoverTrack = '';
+let internal = false;
 
+/** 封面取色是全局的：整界面（导航、列表、弹窗）都跟着当前封面走 */
 async function syncCoverTheme() {
   const theme = store.state.theme;
   if (!theme.fromCover) {
-    if (coverActive) { coverActive = false; applyTheme(theme); }
+    if (coverActive) {
+      coverActive = false;
+      internal = true;
+      store.patch('theme', { coverSeed: '' });
+      internal = false;
+      applyTheme(theme);
+    }
     return;
   }
   const track = store.state.player.track;
-  if (!track) {
-    if (coverActive) { coverActive = false; applyTheme(theme); }
-    return;
-  }
+  if (!track) return;
   const token = (coverToken += 1);
-  const color = await sourceColorFromUrl(artworkFor(track));
+  const cached = await getTrackColor(track.id);
   if (token !== coverToken) return;
+  let color = cached;
+  if (!color) {
+    const candidates = artworkCandidates(track, 300);
+    color = await sourceColorFromUrl(candidates);
+    if (token !== coverToken) return;
+    if (color) saveTrackColor(track.id, color).catch(() => {});
+  }
   coverActive = true;
+  internal = true;
+  store.patch('theme', { coverSeed: color || '' });
+  internal = false;
   applyTheme({ ...theme, seed: color || theme.seed });
+}
+
+/** 偏好设置 -> 根元素 */
+function applyPrefs(settings) {
+  const root = document.documentElement;
+  const density = settings['prefs.density'] || 'comfortable';
+  root.style.setProperty('--row-h', density === 'compact' ? '56px' : '64px');
+  root.style.setProperty('--art-md', density === 'compact' ? '40px' : '48px');
+  document.body.classList.toggle('reduce-motion', Boolean(settings['prefs.reduceMotion']));
 }
 
 async function boot() {
@@ -70,8 +95,16 @@ async function boot() {
   for (const route of meRoutes) router.add(route);
   router.start();
 
-  on(['player'], () => { syncCoverTheme(); });
-  on(['theme'], () => { syncCoverTheme(); });
+  applyPrefs(settings);
+
+  on(['player'], () => {
+    const id = store.state.player.track ? store.state.player.track.id : '';
+    if (id === lastCoverTrack) return;
+    lastCoverTrack = id;
+    syncCoverTheme();
+  });
+  on(['theme'], () => { if (!internal) syncCoverTheme(); });
+  on(['settings'], () => { applyPrefs(store.state.settings); });
 
   requestPersistentStorage().catch(() => {});
 

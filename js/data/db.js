@@ -1,6 +1,6 @@
 /* IndexedDB 封装：单库多表，所有操作返回 Promise */
 const DB_NAME = 'melody';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 /** [表名, 主键, 索引[], 自增] */
 const SCHEMA = [
@@ -14,6 +14,7 @@ const SCHEMA = [
   ['cached', 'id', ['profileId'], false],
   ['blobs', 'id', [], false],
   ['settings', 'key', [], false],
+  ['colors', 'id', [], false],
 ];
 
 let handle = null;
