@@ -772,20 +772,20 @@ body[data-paused="true"] .list-item__playing i { animation-play-state: paused; }
 
 .waves {
   position: relative;
-  height: 148px;
-  margin: 18px 0 26px;
+  height: 128px;
+  margin: 10px 0 20px;
   color: var(--md-sys-color-outline-variant);
   overflow: hidden;
 }
 .wave {
-  position: absolute; left: -5%; width: 110%; height: 72px;
+  position: absolute; left: -6%; width: 112%; height: 160px; top: 50%; margin-top: -80px;
   background: currentColor;
   -webkit-mask-repeat: repeat-x; mask-repeat: repeat-x;
-  -webkit-mask-size: 520px 72px; mask-size: 520px 72px;
+  -webkit-mask-size: 520px 160px; mask-size: 520px 160px;
 }
-.wave--1 { top: 4px; opacity: .34; animation: waveMove 46s linear infinite; }
-.wave--2 { top: 30px; opacity: .52; animation: waveMove 31s linear infinite reverse; }
-.wave--3 { top: 58px; opacity: .26; animation: waveMove 21s linear infinite; }
+.wave--1 { opacity: .30; animation: waveMove 44s linear infinite; animation-delay: -2s; }
+.wave--2 { opacity: .46; animation: waveMove 29s linear infinite reverse; animation-delay: -7s; }
+.wave--3 { opacity: .22; animation: waveMove 19s linear infinite; animation-delay: -13s; }
 @keyframes waveMove { from { -webkit-mask-position: 0 0; mask-position: 0 0; } to { -webkit-mask-position: -520px 0; mask-position: -520px 0; } }
 
 .home-main { display: flex; flex-direction: column; gap: 14px; }
@@ -1032,7 +1032,12 @@ img[data-cover].is-missing { opacity: 0; }
 .player__inner { width: 100%; max-width: 1080px; margin: 0 auto; }
 @media (min-width: 900px) {
   .player--full .player__stage { width: min(32vw, 360px); }
-  .player__meta { max-width: 720px; }
-  .player__seek { max-width: 720px; }
+
 }
+
+
+/* 波浪 v3：同一中轴，三条不同幅度，相位错开才会交织 */
+.wave--1 { -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='520' height='160' viewBox='0 0 520 160'%3E%3Cpath d='M0 80 Q 65 40 130 80 T 260 80 T 390 80 T 520 80' fill='none' stroke='%23000' stroke-width='2.1' stroke-linecap='round'/%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='520' height='160' viewBox='0 0 520 160'%3E%3Cpath d='M0 80 Q 65 40 130 80 T 260 80 T 390 80 T 520 80' fill='none' stroke='%23000' stroke-width='2.1' stroke-linecap='round'/%3E%3C/svg%3E"); }
+.wave--2 { -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='520' height='160' viewBox='0 0 520 160'%3E%3Cpath d='M0 80 Q 65 8 130 80 T 260 80 T 390 80 T 520 80' fill='none' stroke='%23000' stroke-width='2.3' stroke-linecap='round'/%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='520' height='160' viewBox='0 0 520 160'%3E%3Cpath d='M0 80 Q 65 8 130 80 T 260 80 T 390 80 T 520 80' fill='none' stroke='%23000' stroke-width='2.3' stroke-linecap='round'/%3E%3C/svg%3E"); }
+.wave--3 { -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='520' height='160' viewBox='0 0 520 160'%3E%3Cpath d='M0 80 Q 65 -24 130 80 T 260 80 T 390 80 T 520 80' fill='none' stroke='%23000' stroke-width='2.6' stroke-linecap='round'/%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='520' height='160' viewBox='0 0 520 160'%3E%3Cpath d='M0 80 Q 65 -24 130 80 T 260 80 T 390 80 T 520 80' fill='none' stroke='%23000' stroke-width='2.6' stroke-linecap='round'/%3E%3C/svg%3E"); }
 

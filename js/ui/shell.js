@@ -6,7 +6,7 @@ import { activeLineIndex } from '../player/lyrics.js';
 import { coverSources } from './cover.js';
 import { openTrackMenu } from './track-menu.js';
 import { getTrackColor, isFavorite, toggleFavorite } from '../data/repo.js';
-import { sourceColorFromUrl, onColorFor } from '../core/theme.js';
+import { sourceColorFromUrl, colorFromImageElement, schemeVars, resolveDark } from '../core/theme.js';
 
 let els = {};
 let viewMode = 'cover';
@@ -70,26 +70,33 @@ function lyricsEmpty(holder, text) {
   holder.innerHTML = '<div class="t-body-m muted">' + esc(text) + '</div>';
 }
 
+/** 播放器整套配色都从封面来：不仅按钮，背景、文字、控件一起换 */
 async function applyTint(node, track) {
   const token = (tintToken += 1);
-  if (!tintEnabled() || !track) {
-    node.style.removeProperty('--player-accent');
-    node.style.removeProperty('--player-on-accent');
-    return;
-  }
+  const clear = () => {
+    for (const key of node._tintKeys || []) node.style.removeProperty(key);
+    node._tintKeys = [];
+  };
+  if (!tintEnabled() || !track) { clear(); return; }
+  if (!coverSources(track, 200).length) { clear(); return; }
   let color = await getTrackColor(track.id).catch(() => '');
   if (token !== tintToken) return;
+  if (!color) {
+    const coverImg = node.querySelector('.player__cover img');
+    if (coverImg) color = await colorFromImageElement(coverImg);
+    if (token !== tintToken) return;
+  }
   if (!color) {
     color = await sourceColorFromUrl(coverSources(track, 200));
     if (token !== tintToken) return;
   }
-  if (!color) {
-    node.style.removeProperty('--player-accent');
-    node.style.removeProperty('--player-on-accent');
-    return;
-  }
-  node.style.setProperty('--player-accent', color);
-  node.style.setProperty('--player-on-accent', onColorFor(color));
+  if (!color) { clear(); return; }
+  const vars = schemeVars(color, resolveDark(store.state.theme.mode), 'content');
+  clear();
+  node._tintKeys = Object.keys(vars);
+  for (const key of node._tintKeys) node.style.setProperty(key, vars[key]);
+  node.style.setProperty('--player-accent', vars['--md-sys-color-primary']);
+  node.style.setProperty('--player-on-accent', vars['--md-sys-color-on-primary']);
 }
 
 function renderPlayer() {

@@ -134,6 +134,24 @@ async function extractOnce(url, timeout) {
  * 从封面取主色（Monet 取色）。可传多个候选，按顺序试第一个能读到像素的。
  * 只有带 Access-Control-Allow-Origin 的封面才能取色（网易云可以，QQ 音乐 CDN 不行）。
  */
+/** 直接从已经加载好的 <img> 取色（封面走的是缓存 blob 时也能算） */
+export function colorFromImageElement(img) {
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (value) => { if (!done) { done = true; resolve(value); } };
+    const run = async () => {
+      try {
+        if (!img.naturalWidth) return finish(null);
+        const argb = await sourceColorFromImage(img, { maxImageSize: 112 });
+        finish(argb ? hexFromArgb(argb) : null);
+      } catch { finish(null); }
+    };
+    if (img.complete && img.naturalWidth) { run(); return; }
+    img.addEventListener('load', run, { once: true });
+    setTimeout(() => finish(null), 5000);
+  });
+}
+
 const IMAGE_PROXY = 'https://wsrv.nl/?url=';
 
 function proxied(url) {
