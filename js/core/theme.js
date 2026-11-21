@@ -102,7 +102,7 @@ export function applyTheme(next = {}) {
   else if (!root.classList.contains('theme-transition')) {
     root.classList.add('theme-transition');
     clearTimeout(themeTransitionTimer);
-    themeTransitionTimer = setTimeout(() => root.classList.remove('theme-transition'), 460);
+    themeTransitionTimer = setTimeout(() => root.classList.remove('theme-transition'), 560);
   }
 
   if (!mediaBound) {
