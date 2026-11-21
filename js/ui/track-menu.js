@@ -36,7 +36,7 @@ export async function openTrackMenu(track, options = {}) {
         if (options.onFavoriteChange) options.onFavoriteChange(track.id, now);
       },
     },
-    { icon: 'playlist_add', label: '加入歌单', onSelect: () => openPlaylistPicker(track) },
+    { icon: 'playlist_add', label: '加入歌单', submenu: () => playlistItems(track) },
     ...(track.artist ? String(track.artist).split(' / ').map((name) => name.trim()).filter(Boolean).slice(0, 3).map((name) => ({
       icon: 'person',
       label: '查看歌手 · ' + name,
@@ -128,7 +128,8 @@ export async function openTrackMenu(track, options = {}) {
   return openActionMenu({ title: track.title, anchor: options.anchor, rect, point, items });
 }
 
-export async function openPlaylistPicker(track) {
+/** 二级菜单内容：所有歌单 + 新建歌单 */
+export async function playlistItems(track) {
   const profileId = store.state.profileId;
   const lists = await listPlaylists(profileId);
   const items = lists.map((list) => ({
@@ -152,6 +153,9 @@ export async function openPlaylistPicker(track) {
       document.dispatchEvent(new CustomEvent('playlist:changed', { detail: { playlistId: list.id } }));
     },
   });
-  // 桌面端与移动端都走同一套动作菜单：桌面浮出、移动抽屉
-  openActionMenu({ title: '加入歌单', items });
+  return items;
+}
+
+export async function openPlaylistPicker(track) {
+  openActionMenu({ title: '加入歌单', items: await playlistItems(track) });
 }

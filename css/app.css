@@ -912,6 +912,8 @@ body[data-paused="true"] .list-item__playing i { animation-play-state: paused; }
 .menu__item:hover { background: color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent); }
 .menu__item[aria-disabled="true"] { opacity: var(--state-disabled); pointer-events: none; }
 .menu__item .menu__icon { font-size: 20px; color: var(--md-sys-color-on-surface-variant); }
+.menu__chevron { margin-left: auto; font-size: 20px; color: var(--md-sys-color-on-surface-variant); opacity: .8; }
+.menu--submenu { transform-origin: top left; }
 .menu--sheet .menu__item { min-height: 52px; }
 .menu--sheet .menu__item .menu__icon { font-size: 22px; }
 

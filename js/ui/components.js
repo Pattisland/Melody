@@ -189,9 +189,12 @@ export function openSheet(options = {}) {
 
 function menuItemHTML(item, index) {
   return '<button class="menu__item" role="menuitem" data-index="' + index + '"' +
-    (item.disabled ? ' aria-disabled="true"' : '') + '>' +
+    (item.disabled ? ' aria-disabled="true"' : '') +
+    (item.submenu ? ' aria-haspopup="menu"' : '') + '>' +
     (item.icon ? icon(item.icon, 'menu__icon') : '') +
-    '<span class="menu__label">' + esc(item.label) + '</span></button>';
+    '<span class="menu__label">' + esc(item.label) + '</span>' +
+    (item.submenu ? '<span class="icon menu__chevron" aria-hidden="true">chevron_right</span>' : '') +
+    '</button>';
 }
 
 /**
@@ -208,7 +211,15 @@ export function openActionMenu(options = {}) {
   if (!desktop) {
     const body = '<div class="menu menu--sheet">' + items.map(menuItemHTML).join('') + '</div>';
     const sheet = openSheet({ title: options.title || '', body });
-    bindMenuItems(sheet.body, items, sheet.close);
+    bindMenuItems(sheet.body, items, sheet.close, {
+      // 移动端二级菜单：关掉抽屉后再开一层
+      onSubmenu: async (button, item) => {
+        sheet.close();
+        await new Promise((resolve) => setTimeout(resolve, 140));
+        const list = await item.submenu();
+        openActionMenu({ title: item.label, items: list });
+      },
+    });
     return { close: sheet.close, element: sheet.element };
   }
 
@@ -240,29 +251,80 @@ export function openActionMenu(options = {}) {
   requestAnimationFrame(() => menu.classList.add('is-open'));
 
   let closed = false;
+  const childMenus = [];
+  let currentSub = null;
+  const closeChildren = () => {
+    while (childMenus.length) childMenus.pop().element.remove();
+    currentSub = null;
+  };
   const close = () => {
     if (closed) return;
     closed = true;
+    closeChildren();
     menu.classList.remove('is-open');
     document.removeEventListener('pointerdown', onDown, true);
     document.removeEventListener('keydown', onKey, true);
     setTimeout(() => menu.remove(), 160);
     if (options.onClose) options.onClose();
   };
-  function onDown(event) { if (!menu.contains(event.target)) close(); }
+  const inside = (target) => menu.contains(target) || childMenus.some((child) => child.element.contains(target));
+  function onDown(event) { if (!inside(event.target)) close(); }
   function onKey(event) { if (event.key === 'Escape') close(); }
   document.addEventListener('pointerdown', onDown, true);
   document.addEventListener('keydown', onKey, true);
-  bindMenuItems(menu, items, close);
+
+  // 二级菜单：贴着父项右侧展开，空间不足就翻到左侧
+  function openSubmenu(button, item) {
+    if (closed || currentSub === button) return;
+    closeChildren();
+    currentSub = button;
+    Promise.resolve(item.submenu())
+      .then((list) => {
+        if (closed || !list || !list.length) return;
+        const child = document.createElement('div');
+        child.className = 'menu menu--popover menu--submenu';
+        child.setAttribute('role', 'menu');
+        child.innerHTML = list.map(menuItemHTML).join('');
+        host.appendChild(child);
+        const box = child.getBoundingClientRect();
+        const anchor = button.getBoundingClientRect();
+        const parent = menu.getBoundingClientRect();
+        let left = parent.right + 2;
+        if (left + box.width > window.innerWidth - 8) left = Math.max(8, parent.left - box.width - 2);
+        let top = Math.max(8, Math.min(anchor.top - 6, window.innerHeight - box.height - 8));
+        if (box.height > window.innerHeight - 16) {
+          child.style.maxHeight = Math.max(160, window.innerHeight - 16) + 'px';
+          child.style.overflowY = 'auto';
+          top = 8;
+        }
+        child.style.left = left + 'px';
+        child.style.top = top + 'px';
+        requestAnimationFrame(() => child.classList.add('is-open'));
+        childMenus.push({ element: child });
+        bindMenuItems(child, list, close);
+      })
+      .catch(() => { currentSub = null; });
+  }
+
+  menu.addEventListener('pointerover', (event) => {
+    const button = event.target.closest('[data-index]');
+    if (!button) return;
+    const item = items[Number(button.dataset.index)];
+    if (item && item.submenu) openSubmenu(button, item);
+    else if (childMenus.length) closeChildren();
+  });
+
+  bindMenuItems(menu, items, close, { onSubmenu: openSubmenu });
   return { close, element: menu };
 }
 
-function bindMenuItems(root, items, close) {
+function bindMenuItems(root, items, close, hooks = {}) {
   root.addEventListener('click', (event) => {
     const button = event.target.closest('[data-index]');
     if (!button) return;
     const item = items[Number(button.dataset.index)];
     if (!item || item.disabled) return;
+    if (item.submenu && hooks.onSubmenu) { hooks.onSubmenu(button, item); return; }
     close();
     if (item.onSelect) item.onSelect();
   });
