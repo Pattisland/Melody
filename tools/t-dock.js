@@ -1,8 +1,13 @@
 (async () => {
-  await new Promise((r) => setTimeout(r, 3200));
-  document.querySelectorAll('[data-track-id]')[0].click();
-  await new Promise((r) => setTimeout(r, 2600));
-  const dock = document.querySelector('.dock');
-  const r = dock.getBoundingClientRect();
-  return { left: Math.round(r.left), right: Math.round(r.right), width: Math.round(r.width), vw: window.innerWidth };
+  await new Promise((r) => setTimeout(r, 2400));
+  const dock = document.querySelector('.dock__inner');
+  const fab = document.querySelector('.fab');
+  const page = document.querySelector('.page');
+  return {
+    dockPadL: dock ? getComputedStyle(dock).paddingLeft : null,
+    dockMaxW: dock ? getComputedStyle(dock).maxWidth : null,
+    fabRight: fab ? getComputedStyle(fab).right : null,
+    pagePadL: getComputedStyle(page).paddingLeft,
+    gutter: getComputedStyle(document.documentElement).getPropertyValue('--gutter').trim(),
+  };
 })()

@@ -1277,3 +1277,10 @@ html.theme-transition *:not(.player):not(.sheet):not(.dialog):not(.menu--popover
   .page-view, .results-page, .search-page { max-width: none !important; margin-left: 0 !important; margin-right: 0 !important; }
 }
 
+
+/* 悬浮条与浮动按钮跟随页面边距，不再用 --maxw 居中 */
+@media (min-width: 840px) {
+  .dock__inner { max-width: none; margin: 0; padding-left: var(--gutter); padding-right: var(--gutter); }
+  .fab { right: calc(var(--gutter) + 8px); }
+}
+
