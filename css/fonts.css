@@ -1,0 +1,22 @@
+/* Roboto（Apache-2.0，latin 子集，本地打包）—— 与 M3 默认字体族一致 */
+@font-face {
+  font-family: "Melody Roboto";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../assets/fonts/roboto-latin-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Melody Roboto";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("../assets/fonts/roboto-latin-500.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Melody Roboto";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("../assets/fonts/roboto-latin-700.woff2") format("woff2");
+}

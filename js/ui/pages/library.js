@@ -5,6 +5,7 @@ import { store } from '../../core/store.js';
 import { listHistory, listFavorites, listCached, listPlaylists, createPlaylist, getProfile } from '../../data/repo.js';
 import { songList, attachSongList, emptyState, toast } from '../components.js';
 import { openTrackMenu } from '../track-menu.js';
+import { openTrackInfo } from '../track-info.js';
 import { player } from '../../player/player.js';
 
 const SYSTEM = [
@@ -24,15 +25,13 @@ async function renderLibrary(root) {
   root.innerHTML =
     '<div class="hero" style="padding-bottom:0"><h1 class="t-headline-l" style="font-weight:650">曲库</h1>' +
     '<p class="hero__sub">' + esc((await getProfile(profileId).then((p) => (p && p.name) || '我的档案'))) + ' · 收藏、歌单与缓存</p></div>' +
-    '<div class="section">' +
-      '<div class="tile-grid">' + SYSTEM.map((item) =>
-        '<button class="tile" data-sys="' + item.key + '">' +
-          '<div class="tile__art">' + icon(item.icon, 'icon--40') + '</div>' +
-          '<div class="tile__title">' + esc(item.label) + '</div>' +
-          '<div class="tile__sub">' + (stats[item.key] || 0) + ' 首</div>' +
-        '</button>').join('') +
-      '</div>' +
-    '</div>' +
+    '<div class="section"><div class="list">' + SYSTEM.map((item) =>
+      '<div class="list-item" data-sys="' + item.key + '" role="button" tabindex="0">' +
+        '<div class="list-item__art lib-row__art">' + icon(item.icon, 'icon--24') + '</div>' +
+        '<div class="list-item__body"><div class="list-item__title">' + esc(item.label) + '</div>' +
+        '<div class="list-item__sub">' + (stats[item.key] || 0) + ' 首 · ' + esc(item.hint) + '</div></div>' +
+        '<div class="list-item__trail">' + icon('chevron_right') + '</div>' +
+      '</div>').join('') + '</div></div>' +
     '<div class="section">' +
       '<div class="section__head"><h2 class="section__title">我的歌单</h2>' +
       '<button class="btn btn--text btn--sm" data-new-list>' + icon('add') + '新建</button></div>' +
@@ -92,10 +91,12 @@ async function renderDetail(root, kind, playlistId) {
 
   attachSongList(host, tracks, {
     onPlay: (track) => player.playTrack(track, { queue: tracks }),
-    onMore: (track) => openTrackMenu(track, {
+    onMore: (track, anchor, event) => openTrackMenu(track, {
+      anchor, point: event,
       onFavoriteChange: () => { if (kind === 'favorites') routeReload(); },
       onCacheChange: () => { if (kind === 'cache') routeReload(); },
     }),
+    onInfo: (track) => openTrackInfo(track),
   });
 }
 

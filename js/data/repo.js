@@ -16,6 +16,7 @@ export const DEFAULT_SETTINGS = {
   'prefs.blurBg': true,
   'prefs.density': 'comfortable',
   'prefs.notifyCache': true,
+  'prefs.playerTint': true,
 };
 
 export async function loadSettings() {

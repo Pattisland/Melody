@@ -8,6 +8,8 @@ import {
   saveSettings, saveSetting, ensureActiveProfile, cacheStats,
 } from '../../data/repo.js';
 import { SOURCES, DEFAULT_ORDER } from '../../sources/registry.js';
+import * as idb from '../../data/db.js';
+import { saveBlob } from '../../download/download.js';
 import { openDialog, toast, emptyState } from '../components.js';
 
 function avatarHtml(profile, large) {
@@ -30,15 +32,15 @@ async function renderMe(root) {
   const profiles = await listProfiles();
   const cached = await cacheStats(store.state.profileId);
   root.innerHTML =
-    '<div class="section" style="margin-top:10px">' +
-      '<div class="card card--elev" data-open-profile role="button" tabindex="0">' +
-        '<div class="row gap-16">' + avatarHtml(profile, true) +
-          '<div class="grow"><div class="t-title-l">' + esc((profile && profile.name) || '我的档案') + '</div>' +
-          '<div class="t-body-m muted">' + esc(store.state.theme.seed) + ' · ' + profiles.length + ' 个档案</div></div>' +
-          icon('edit') +
-        '</div>' +
+    '<h1 class="page-title">设置</h1>' +
+    '<div class="section" style="margin-top:16px"><div class="group">' +
+      '<div class="list-item" style="cursor:default">' +
+        '<div class="list-item__art list-item__art--icon">' + icon('person') + '</div>' +
+        '<div class="list-item__body"><div class="list-item__title">' + esc((profile && profile.name) || '我的档案') + '</div>' +
+        '<div class="list-item__sub">当前档案 · 共 ' + profiles.length + ' 个</div></div>' +
+        '<button class="btn btn--text btn--sm" data-rename>重命名</button>' +
       '</div>' +
-    '</div>' +
+    '</div></div>' +
     '<div class="section" style="margin-top:14px"><div class="group">' +
       navRow('palette', '主题配色', '莫奈取色 · 深浅色', '/me/theme') +
       navRow('tune', '偏好设置', '播放与界面细节', '/me/prefs') +
@@ -47,12 +49,29 @@ async function renderMe(root) {
     '</div>' +
     '<div class="group">' +
       navRow('download_done', '缓存管理', cached.count + ' 首 · 存在本地', '/me/cache') +
-      navRow('storage', '数据管理', '导入导出与清理', '/me/data') +
+      navRow('storage', '数据管理', '档案、导入导出与清理', '/me/data') +
       navRow('info', '关于 Melody', '版本与技术说明', '/me/about') +
     '</div></div>';
 
-  root.querySelector('[data-open-profile]').addEventListener('click', () => router.go('/me/profile'));
   root.querySelectorAll('[data-route]').forEach((row) => row.addEventListener('click', () => router.go(row.dataset.route)));
+  root.querySelector('[data-rename]').addEventListener('click', () => {
+    openDialog({
+      title: '重命名档案',
+      body: '<label class="field"><span class="field__label">档案名称</span>' +
+        '<input class="input" data-name value="' + esc((profile && profile.name) || '') + '" maxlength="24"></label>',
+      actions: [
+        { label: '取消', variant: 'text' },
+        { label: '保存', variant: 'filled', onClick: async (dialog) => {
+          const name = dialog.querySelector('[data-name]').value.trim();
+          if (!name) { toast('名字不能为空'); return false; }
+          await updateProfile(profile.id, { name });
+          store.set({ profiles: await listProfiles() });
+          toast('已重命名');
+          router.render();
+        } },
+      ],
+    });
+  });
 }
 
 /* ------------------------------ 个人资料 ------------------------------ */
@@ -82,12 +101,7 @@ async function renderProfile(root) {
   const profile = await getProfile(store.state.profileId);
   const profiles = await listProfiles();
   root.innerHTML =
-    '<div class="stack gap-16" style="align-items:center;padding:16px 0 8px">' +
-      '<label data-avatar style="cursor:pointer">' + avatarHtml(profile, true) + '</label>' +
-      '<input type="file" accept="image/*" hidden data-avatar-input>' +
-      '<div class="t-label-m muted">点击头像更换</div>' +
-    '</div>' +
-    '<div class="stack gap-16 mt-16">' +
+    '<div class="stack gap-16">' +
       '<label class="field"><span class="field__label">档案名称</span>' +
       '<input class="input" data-name value="' + esc((profile && profile.name) || '') + '" maxlength="24" placeholder="给这个档案起个名字"></label>' +
       '<button class="btn btn--filled btn--block" data-save>保存</button>' +
@@ -103,20 +117,6 @@ async function renderProfile(root) {
         '</div>').join('') + '</div>' +
       (profiles.length > 1 ? '<div class="mt-16"><button class="btn btn--text" data-delete style="color:var(--md-sys-color-error)">删除当前档案</button></div>' : '') +
     '</div>';
-
-  const input = root.querySelector('[data-avatar-input]');
-  root.querySelector('[data-avatar]').addEventListener('click', () => input.click());
-  input.addEventListener('change', async () => {
-    const file = input.files && input.files[0];
-    if (!file) return;
-    try {
-      const dataUrl = await readImage(file, 256);
-      await updateProfile(profile.id, { avatar: dataUrl });
-      const next = await getProfile(profile.id);
-      root.querySelector('[data-avatar]').innerHTML = avatarHtml(next, true);
-      toast('头像已更新');
-    } catch (err) { toast(err.message); }
-  });
 
   root.querySelector('[data-save]').addEventListener('click', async () => {
     const name = root.querySelector('[data-name]').value.trim();
@@ -324,6 +324,7 @@ async function renderPrefs(root) {
   root.innerHTML =
     '<div class="group">' +
       '<div class="group__label">播放器</div>' +
+      prefSwitch('prefs.playerTint', '播放器跟随封面取色', '控件主色用当前封面主色；没有封面时退回系统主题色', settings['prefs.playerTint'] !== false) +
       prefSwitch('prefs.blurBg', '模糊封面背景', '用当前封面的模糊图垫在全屏播放器后面', settings['prefs.blurBg'] !== false) +
       prefSwitch('prefs.notifyCache', '完成提示', '缓存与下载结束时提示一条', settings['prefs.notifyCache'] !== false) +
     '</div>' +
@@ -351,16 +352,109 @@ async function renderPrefs(root) {
   });
 }
 
+/* ------------------------------ 数据管理 ------------------------------ */
+
+async function renderData(root) {
+  const profileId = store.state.profileId;
+  const profiles = await listProfiles();
+  root.innerHTML =
+    '<div class="group">' +
+      '<div class="group__label">档案</div>' +
+      navRow('person', '档案管理', profiles.length + ' 个档案 · 新建 / 切换 / 重命名', '/me/profile') +
+    '</div>' +
+    '<div class="group">' +
+      '<div class="group__label">数据</div>' +
+      '<div class="list-item" data-act="export" role="button" tabindex="0">' +
+        '<div class="list-item__art list-item__art--icon">' + icon('file_download') + '</div>' +
+        '<div class="list-item__body"><div class="list-item__title">导出配置</div>' +
+        '<div class="list-item__sub">档案、设置、收藏与歌单（不含音频）</div></div>' +
+        '<div class="list-item__trail">' + icon('chevron_right') + '</div></div>' +
+      '<div class="list-item" data-act="cleanthumbs" role="button" tabindex="0">' +
+        '<div class="list-item__art list-item__art--icon">' + icon('cleaning_services') + '</div>' +
+        '<div class="list-item__body"><div class="list-item__title">清理临时缓存</div>' +
+        '<div class="list-item__sub">封面缩略图与取色结果（不影响已缓存的歌曲）</div></div>' +
+        '<div class="list-item__trail">' + icon('chevron_right') + '</div></div>' +
+      '<div class="list-item" data-act="reset" role="button" tabindex="0">' +
+        '<div class="list-item__art list-item__art--icon">' + icon('restart_alt') + '</div>' +
+        '<div class="list-item__body"><div class="list-item__title">恢复默认设置</div>' +
+        '<div class="list-item__sub">保留档案与歌曲数据，只重置设置项</div></div>' +
+        '<div class="list-item__trail">' + icon('chevron_right') + '</div></div>' +
+    '</div>' +
+    '<div class="group">' +
+      '<div class="list-item" data-act="wipe" role="button" tabindex="0">' +
+        '<div class="list-item__art list-item__art--icon" style="color:var(--md-sys-color-error)">' + icon('delete_forever') + '</div>' +
+        '<div class="list-item__body"><div class="list-item__title" style="color:var(--md-sys-color-error)">清空全部数据</div>' +
+        '<div class="list-item__sub">档案、收藏、歌单、历史、缓存全部删除，不可恢复</div></div>' +
+        '<div class="list-item__trail">' + icon('chevron_right') + '</div></div>' +
+    '</div>';
+
+  root.querySelectorAll('[data-route]').forEach((row) => row.addEventListener('click', () => router.go(row.dataset.route)));
+  root.querySelectorAll('[data-act]').forEach((row) => row.addEventListener('click', async () => {
+    const act = row.dataset.act;
+    if (act === 'export') {
+      const [allProfiles, settingsRows, favorites, playlists, items] = await Promise.all([
+        listProfiles(),
+        idb.all('settings'),
+        idb.all('favorites'),
+        idb.all('playlists'),
+        idb.all('playlistItems'),
+      ]);
+      const payload = { app: 'Melody', version: 1, exportedAt: new Date().toISOString(), profiles: allProfiles, settings: settingsRows, favorites, playlists, playlistItems: items };
+      saveBlob(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }), 'melody-backup-' + new Date().toISOString().slice(0, 10) + '.json');
+      toast('已导出配置');
+      return;
+    }
+    if (act === 'cleanthumbs') {
+      await Promise.all([idb.clear('thumbs'), idb.clear('colors')]);
+      toast('临时缓存已清理');
+      return;
+    }
+    if (act === 'reset') {
+      openDialog({
+        title: '恢复默认设置？',
+        description: '档案、收藏、歌单与缓存都会保留，只把主题、偏好与来源设置恢复默认。',
+        actions: [
+          { label: '取消', variant: 'text' },
+          { label: '恢复', variant: 'filled', onClick: async () => {
+            await idb.clear('settings');
+            toast('设置已恢复默认，正在刷新…');
+            setTimeout(() => location.reload(), 600);
+          } },
+        ],
+      });
+      return;
+    }
+    if (act === 'wipe') {
+      openDialog({
+        title: '清空全部数据？',
+        description: '包括所有档案、收藏、歌单、历史与已缓存的音频，且无法恢复。',
+        actions: [
+          { label: '取消', variant: 'text' },
+          { label: '永久删除', variant: 'danger', onClick: async () => {
+            await idb.destroyDb();
+            toast('已清空，正在刷新…');
+            setTimeout(() => location.reload(), 600);
+          } },
+        ],
+      });
+    }
+  }));
+}
+
 /* ------------------------------ 其它 ------------------------------ */
 
 function renderStub(root, ctx) {
-  root.innerHTML = emptyState('construction', '正在施工', '这个页面在下一阶段补上：' + (ctx && ctx.path ? ctx.path : ''));
+  root.innerHTML =
+    '<div class="group">' +
+      '<div class="group__label">任务</div>' +
+      '<div class="state-hint" style="padding:28px 20px">缓存队列还没开始做，下一版会给出真正的任务列表（并发、暂停、重试）。</div>' +
+    '</div>';
 }
 
 function renderAbout(root) {
   root.innerHTML =
     '<div class="stack gap-16" style="align-items:center;text-align:center;padding:32px 0">' +
-      '<img src="./assets/icon.svg" width="72" height="72" alt="">' +
+      '<span class="icon about-mark" aria-hidden="true">music_note</span>' +
       '<div class="t-headline-s">Melody</div>' +
       '<div class="t-body-m muted">在线音乐搜索 · 播放 · 收藏<br>纯静态，托管于 GitHub Pages</div>' +
     '</div>' +
@@ -373,11 +467,11 @@ function renderAbout(root) {
 
 export const meRoutes = [
   { path: '/me', level: 1, title: '我的', mount: renderMe },
-  { path: '/me/profile', level: 2, title: '个人资料', mount: renderProfile },
+  { path: '/me/profile', level: 2, title: '档案管理', mount: renderProfile },
   { path: '/me/theme', level: 2, title: '主题配色', mount: renderTheme },
   { path: '/me/sources', level: 2, title: '来源设置', mount: renderSources },
   { path: '/me/prefs', level: 2, title: '偏好设置', mount: renderPrefs },
   { path: '/me/tasks', level: 2, title: '任务进度', mount: renderStub },
-  { path: '/me/data', level: 2, title: '数据管理', mount: renderStub },
+  { path: '/me/data', level: 2, title: '数据管理', mount: renderData },
   { path: '/me/about', level: 2, title: '关于', mount: renderAbout },
 ];

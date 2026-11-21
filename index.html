@@ -10,6 +10,7 @@
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./assets/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="./assets/icon.svg">
+<link rel="stylesheet" href="./css/fonts.css">
 <link rel="stylesheet" href="./css/tokens.css">
 <link rel="stylesheet" href="./css/icons.css">
 <link rel="stylesheet" href="./css/app.css">
@@ -20,7 +21,7 @@
   <div class="app" id="app">
     <nav class="nav" id="nav" aria-label="主导航">
       <div class="nav__brand" aria-hidden="true">
-        <img class="nav__logo" src="./assets/icon.svg" alt="" width="40" height="40">
+        <span class="icon nav__logo-icon" aria-hidden="true">music_note</span>
         <span class="nav__wordmark">Melody</span>
       </div>
       <a class="nav__item" href="#/home" data-dest="home">
@@ -40,8 +41,8 @@
       </a>
       <a class="nav__item" href="#/me" data-dest="me">
         <span class="nav__ind" aria-hidden="true"></span>
-        <span class="icon nav__icon" aria-hidden="true">person</span>
-        <span class="nav__label">我的</span>
+        <span class="icon nav__icon" aria-hidden="true">settings</span>
+        <span class="nav__label">设置</span>
       </a>
     </nav>
 

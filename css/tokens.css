@@ -74,7 +74,7 @@
   --art-lg: 56px;
   --art-xl: 88px;
 
-  --font-ui: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  --font-ui: "Melody Roboto", "HarmonyOS Sans SC", -apple-system, "PingFang SC", "Noto Sans SC", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
   --font-num: ui-rounded, system-ui, sans-serif;
 }
 

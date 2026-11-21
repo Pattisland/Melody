@@ -173,7 +173,7 @@ export function openActionMenu(options = {}) {
   let left = anchorLeft - box.width;
   left = Math.max(8, Math.min(left, window.innerWidth - box.width - 8));
   let top = anchorTop + 6;
-  if (top + box.height > window.innerHeight - 8) top = anchorTop - box.height - 6;
+  if (top + box.height > window.innerHeight - 8) top = Math.max(8, window.innerHeight - box.height - 8);
   menu.style.left = left + 'px';
   menu.style.top = Math.max(8, top) + 'px';
   requestAnimationFrame(() => menu.classList.add('is-open'));
@@ -259,6 +259,14 @@ export function attachSongList(root, tracks, handlers = {}) {
       return;
     }
     if (handlers.onPlay) handlers.onPlay(track, tracks);
+  });
+
+  list.addEventListener('contextmenu', (event) => {
+    const row = event.target.closest('[data-track-id]');
+    if (!row) return;
+    event.preventDefault();
+    const track = byId.get(row.dataset.trackId);
+    if (track && handlers.onInfo) handlers.onInfo(track, row);
   });
 
   list.addEventListener('keydown', (event) => {

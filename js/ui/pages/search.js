@@ -8,6 +8,7 @@ import { groupAlbums } from '../../sources/merge.js';
 import { songList, attachSongList, emptyState, toast, sectionHeader } from '../components.js';
 import { coverMarkup } from '../cover.js';
 import { openTrackMenu } from '../track-menu.js';
+import { openTrackInfo } from '../track-info.js';
 import { player } from '../../player/player.js';
 
 let pageState = null;
@@ -19,8 +20,8 @@ function emptyStateFor() {
   };
 }
 
-function searchForm(value, variant) {
-  return '<form class="searchbar ' + (variant === 'hero' ? 'searchbar--hero' : 'searchbar--bar') + '" role="search" data-search-form>' +
+function searchForm(value) {
+  return '<form class="searchbar searchbar--page" role="search" data-search-form>' +
     '<span class="icon" aria-hidden="true" style="margin-left:8px">search</span>' +
     '<input class="searchbar__input" type="search" name="q" value="' + esc(value) + '" placeholder="搜索歌曲、歌手或专辑" autocomplete="off" enterkeyhint="search" aria-label="搜索">' +
     '<button class="icon-btn" type="submit" aria-label="搜索">' + icon('arrow_forward') + '</button>' +
@@ -32,7 +33,7 @@ async function renderHome(root) {
   const history = await listSearches(profileId, 40);
   root.innerHTML =
     '<div class="search-page">' +
-      searchForm('', 'hero') +
+      searchForm('') +
       (history.length
         ? '<div class="section">' + sectionHeader('最近搜索',
             '<button class="btn btn--text btn--sm" data-clear>清除</button>') +
@@ -40,7 +41,7 @@ async function renderHome(root) {
             '<div class="list-item history-row" data-term="' + esc(row.term) + '" role="button" tabindex="0">' +
               '<div class="list-item__art list-item__art--icon">' + icon('history') + '</div>' +
               '<div class="list-item__body"><div class="list-item__title">' + esc(row.term) + '</div>' +
-              '<div class="list-item__sub">' + new Date(row.lastAt).toLocaleDateString() + ' · ' + row.count + ' 次</div></div>' +
+              '<div class="list-item__sub">' + new Date(row.lastAt).toLocaleDateString() + '</div></div>' +
               '<div class="list-item__trail"><button class="icon-btn" data-remove="' + esc(row.id) + '" aria-label="删除这条记录">' +
                 icon('close', 'icon--20') + '</button></div>' +
             '</div>').join('') + '</div></div>'
@@ -77,7 +78,8 @@ async function renderHome(root) {
 function resultsShell(root, q) {
   root.innerHTML =
     '<div class="results-page">' +
-      searchForm(q, 'bar') +
+      searchForm(q) +
+      '<div class="search-progress" data-progress><span class="search-progress__bar"></span></div>' +
       '<div class="results-head" data-results-head></div>' +
       '<div data-results-body><div class="stack gap-8">' +
         Array.from({ length: 6 }).map(() => '<div class="list-item"><div class="list-item__art skeleton"></div><div class="list-item__body"><div class="skeleton" style="height:14px;width:52%"></div><div class="skeleton mt-8" style="height:12px;width:34%"></div></div></div>').join('') +
@@ -189,15 +191,22 @@ function renderResults(root) {
   attachSongList(body, list, {
     onPlay: (track, queue) => { markInteracted(); player.playTrack(track, { queue }); },
     onMore: (track, anchor, event) => { markInteracted(); openTrackMenu(track, { anchor, point: event }); },
+    onInfo: (track) => openTrackInfo(track),
   });
 
   const more = body.querySelector('[data-more]');
   if (more) more.addEventListener('click', () => loadMore(root));
 }
 
+function setProgress(root, on) {
+  const bar = root.querySelector('[data-progress]');
+  if (bar) bar.classList.toggle('is-on', Boolean(on));
+}
+
 async function loadResults(root) {
   const token = (pageState.token += 1);
   pageState.loading = true;
+  setProgress(root, true);
   try {
     const result = await searchAll(pageState.q, {
       settings: store.state.settings,
@@ -226,13 +235,14 @@ async function loadResults(root) {
     pageState.failed = [{ label: '全部来源', error: err.message }];
   } finally {
     pageState.loading = false;
-    if (token === pageState.token) renderResults(root);
+    if (token === pageState.token) { renderResults(root); setProgress(root, false); }
   }
 }
 
 async function loadMore(root) {
   pageState.loading = true;
   renderResults(root);
+  setProgress(root, true);
   const token = pageState.token;
   try {
     const result = await searchAll(pageState.q, { settings: store.state.settings, page: pageState.page + 1, limit: 20 });
@@ -248,6 +258,7 @@ async function loadMore(root) {
   } finally {
     pageState.loading = false;
     renderResults(root);
+    setProgress(root, false);
   }
 }
 
