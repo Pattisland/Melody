@@ -219,6 +219,19 @@ export function mountShell() {
 
   let signature = '';
   let lastTrackId = '';
+  let lastPlaying = null;
+
+  // 播放/暂停只换图标，不重建任何 DOM（否则封面会闪一下）
+  const syncPlayState = (p) => {
+    const glyphName = p.playing ? 'pause' : 'play_arrow';
+    const label = p.playing ? '暂停' : '播放';
+    document.querySelectorAll('#player [data-toggle], #dock [data-dock-toggle]').forEach((button) => {
+      button.setAttribute('aria-label', label);
+      const glyph = button.querySelector('.icon');
+      if (glyph) glyph.textContent = glyphName;
+    });
+  };
+
   store.subscribe((state, changed) => {
     if (!changed.includes('player')) return;
     const p = state.player;
@@ -226,9 +239,15 @@ export function mountShell() {
     const next = [
       p.track ? p.track.id : '',
       p.track ? p.track.title : '',
-      p.playing, p.mode, p.error, p.repeat, p.shuffle,
+      p.mode, p.error, p.repeat, p.shuffle,
     ].join('|');
-    if (next === signature) { updateProgress(); return; }
+    const playingChanged = p.playing !== lastPlaying;
+    lastPlaying = p.playing;
+    if (next === signature) {
+      if (playingChanged) syncPlayState(p);
+      updateProgress();
+      return;
+    }
     signature = next;
     const trackId = p.track ? p.track.id : '';
     if (trackId !== lastTrackId) { lastTrackId = trackId; viewMode = 'cover'; }
