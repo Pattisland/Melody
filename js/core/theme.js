@@ -81,6 +81,7 @@ export function resolveDark(mode) {
 let current = { seed: DEFAULT_SEED, mode: 'system', variant: 'tonal' };
 let mediaBound = false;
 let themeTransitionTimer = 0;
+let firstApply = true;
 
 export function currentTheme() { return { ...current }; }
 
@@ -96,8 +97,9 @@ export function applyTheme(next = {}) {
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta && vars['--md-sys-color-surface']) meta.setAttribute('content', vars['--md-sys-color-surface']);
 
-  // 换主题时给所有颜色属性加一段过渡，避免瞬间跳变
-  if (!root.classList.contains('theme-transition')) {
+  // 换主题时给所有颜色属性加一段过渡，避免瞬间跳变（首帧不加，避免启动时整页淡入）
+  if (firstApply) { firstApply = false; }
+  else if (!root.classList.contains('theme-transition')) {
     root.classList.add('theme-transition');
     clearTimeout(themeTransitionTimer);
     themeTransitionTimer = setTimeout(() => root.classList.remove('theme-transition'), 460);
