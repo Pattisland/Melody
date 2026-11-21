@@ -6,7 +6,7 @@ import {
   getCacheEntry, removeCache, isSubscribed, addSubscription, removeSubscription,
 } from '../data/repo.js';
 import { enqueue, taskOf } from '../player/queue.js';
-import { downloadTrack } from '../download/download.js';
+import { downloadTrack, saveLyrics } from '../download/download.js';
 import { refreshCacheState } from './cache-state.js';
 import { openTrackInfo } from './track-info.js';
 import { store } from '../core/store.js';
@@ -87,6 +87,19 @@ export async function openTrackMenu(track, options = {}) {
           return;
         }
         try { await downloadTrack(profileId, track); } catch (err) { toast('下载失败：' + err.message); }
+      },
+    },
+    {
+      icon: 'subtitles',
+      label: '下载歌词',
+      hint: 'LRC 文件',
+      onSelect: async () => {
+        try {
+          await saveLyrics(track);
+          toast('歌词已保存为 .lrc');
+        } catch (err) {
+          toast(err && err.message === '没有找到歌词' ? '这首歌没有可用歌词' : '歌词下载失败：' + ((err && err.message) || '未知错误'));
+        }
       },
     },
     cached ? {

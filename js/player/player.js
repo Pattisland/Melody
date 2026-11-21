@@ -17,7 +17,7 @@ class Player {
     this.shuffleOrder = [];
     this.settings = {};
     this.profileId = null;
-    this.lyrics = { trackId: '', lines: [], loading: false, error: '' };
+    this.lyrics = { trackId: '', text: '', lines: [], loading: false, error: '' };
     this._lastTimeUpdate = 0;
     this._recorded = '';
     this._abort = null;
@@ -186,7 +186,7 @@ class Player {
         .catch(() => {});
     }
     this.updateMediaSession(track);
-    this.lyrics = { trackId: track.id, lines: [], loading: true, error: '' };
+    this.lyrics = { trackId: track.id, text: '', lines: [], loading: true, error: '' };
 
     if (this._abort) this._abort.abort();
     this._abort = new AbortController();
@@ -222,9 +222,9 @@ class Player {
     try {
       const text = await lyricsFor(track, this.settings);
       if (!store.state.player.track || store.state.player.track.id !== track.id) return;
-      this.lyrics = { trackId: track.id, lines: parseLrc(text), loading: false, error: text ? '' : '暂无歌词' };
+      this.lyrics = { trackId: track.id, text: text || '', lines: parseLrc(text), loading: false, error: text ? '' : '暂无歌词' };
     } catch (_) {
-      this.lyrics = { trackId: track.id, lines: [], loading: false, error: '歌词加载失败' };
+      this.lyrics = { trackId: track.id, text: '', lines: [], loading: false, error: '歌词加载失败' };
     }
     store.set({ player: { ...store.state.player } }, 'lyrics');
   }
