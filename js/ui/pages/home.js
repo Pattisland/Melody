@@ -89,15 +89,20 @@ function layoutTileGrids() {
   const desktop = window.matchMedia('(min-width: 840px)').matches;
   gridHosts.forEach((host) => {
     const grid = host.querySelector('.media-grid');
-    if (!grid) return;
+    const row = host.querySelector('.album-row');
+    if (!grid && !row) return;
     if (!desktop) {
-      grid.style.gridTemplateColumns = '';
-      grid.style.removeProperty('--tile');
+      if (grid) grid.style.gridTemplateColumns = '';
+      host.style.removeProperty('--tile');
       return;
     }
     const gap = 14;
     const availW = host.clientWidth - 8;
     const availH = host.clientHeight - 10;
+    if (row) {
+      host.style.setProperty('--tile', Math.max(96, Math.min(210, availH - 74)) + 'px');
+      return;
+    }
     const maxSide = Math.max(88, Math.min(320, availH - 74));
     const cols = Math.max(1, Math.floor((availW + gap) / (maxSide + gap)));
     const colWidth = Math.floor((availW - (cols - 1) * gap) / cols);

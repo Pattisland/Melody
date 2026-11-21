@@ -1210,3 +1210,7 @@ html.theme-transition *:not(.player):not(.sheet):not(.dialog):not(.menu--popover
 :focus-visible { outline: 3px solid var(--md-sys-color-primary); outline-offset: 2px; }
 .list-item:focus-visible, button:focus-visible { outline-offset: 1px; }
 
+
+/* 订阅：封面与推荐同一套尺寸逻辑（方块、按可用高度） */
+.album-row .media { width: var(--tile, 160px); flex: 0 0 auto; max-width: none; }
+
