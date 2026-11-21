@@ -1214,3 +1214,27 @@ html.theme-transition *:not(.player):not(.sheet):not(.dialog):not(.menu--popover
 /* 订阅：封面与推荐同一套尺寸逻辑（方块、按可用高度） */
 .album-row .media { width: var(--tile, 160px); flex: 0 0 auto; max-width: none; }
 
+
+/* 抽屉与对话框永远在最上层，避免被播放器/悬浮条挡住 */
+.sheet-root, .dialog-root { z-index: 300; }
+
+
+/* 桌面端页面左右边距可拖动调整（移动端不显示手柄） */
+@media (min-width: 840px) {
+  .gutter-handle {
+    position: fixed; top: 0; bottom: 0; width: 16px; z-index: 95;
+    cursor: col-resize; touch-action: none;
+  }
+  .gutter-handle[data-side="left"] { left: calc(var(--nav-w) + var(--gutter) - 8px); }
+  .gutter-handle[data-side="right"] { right: calc(var(--gutter) - 8px); }
+  .gutter-handle::after {
+    content: ''; position: absolute; top: 50%; width: 4px; height: 48px;
+    margin-top: -24px; border-radius: 999px;
+    background: var(--md-sys-color-outline-variant);
+    opacity: 0; transition: opacity var(--dur-3) var(--ease-std);
+  }
+  .gutter-handle[data-side="left"]::after { left: 6px; }
+  .gutter-handle[data-side="right"]::after { right: 6px; }
+  .gutter-handle:hover::after, .gutter-handle.is-drag::after { opacity: 1; }
+}
+

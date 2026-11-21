@@ -202,7 +202,8 @@ export function openActionMenu(options = {}) {
   const items = (options.items || []).filter(Boolean);
   const anchor = options.anchor;
   const rect = options.rect || (anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : null);
-  const desktop = window.matchMedia('(min-width: 840px)').matches && Boolean(rect || point);
+  // 桌面端一律用浮出菜单，绝不用底部抽屉（避免出现“上拉”菜单）
+  const desktop = window.matchMedia('(min-width: 840px)').matches;
 
   if (!desktop) {
     const body = '<div class="menu menu--sheet">' + items.map(menuItemHTML).join('') + '</div>';
@@ -227,10 +228,15 @@ export function openActionMenu(options = {}) {
   const anchorTop = validPoint ? point.y : (validRect ? rect.bottom : 80);
   let left = anchorLeft - box.width;
   left = Math.max(8, Math.min(left, window.innerWidth - box.width - 8));
-  let top = anchorTop + 6;
-  if (top + box.height > window.innerHeight - 8) top = Math.max(8, window.innerHeight - box.height - 8);
+  // 桌面端一律向下展开：空间不够就压缩高度并内部滚动，绝不翻到触发点上方
+  const top = Math.max(8, Math.min(anchorTop + 6, window.innerHeight - 240));
+  const room = window.innerHeight - top - 10;
+  if (box.height > room) {
+    menu.style.maxHeight = Math.max(160, room) + 'px';
+    menu.style.overflowY = 'auto';
+  }
   menu.style.left = left + 'px';
-  menu.style.top = Math.max(8, top) + 'px';
+  menu.style.top = top + 'px';
   requestAnimationFrame(() => menu.classList.add('is-open'));
 
   let closed = false;

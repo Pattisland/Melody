@@ -118,29 +118,27 @@ export async function openTrackMenu(track, options = {}) {
 export async function openPlaylistPicker(track) {
   const profileId = store.state.profileId;
   const lists = await listPlaylists(profileId);
-  const body = lists.map((list) =>
-    '<div class="list-item" data-list="' + esc(list.id) + '" role="button" tabindex="0">' +
-    '<div class="list-item__art list-item__art--icon">' + icon('queue_music') + '</div>' +
-    '<div class="list-item__body"><div class="list-item__title">' + esc(list.name) + '</div></div></div>').join('') +
-    '<div class="list-item" data-new role="button" tabindex="0"><div class="list-item__art list-item__art--icon">' + icon('add') + '</div>' +
-    '<div class="list-item__body"><div class="list-item__title">新建歌单</div></div></div>';
-
-  const sheet = openSheet({ title: '加入歌单', body });
-  sheet.body.addEventListener('click', async (event) => {
-    const row = event.target.closest('[data-list]');
-    const createRow = event.target.closest('[data-new]');
-    if (createRow) {
+  const items = lists.map((list) => ({
+    icon: 'queue_music',
+    label: list.name,
+    onSelect: async () => {
+      await addToPlaylist(list.id, track);
+      toast('已加入「' + list.name + '」');
+      document.dispatchEvent(new CustomEvent('playlist:changed', { detail: { playlistId: list.id } }));
+    },
+  }));
+  items.push({
+    icon: 'add',
+    label: '新建歌单',
+    onSelect: async () => {
       const name = await askText({ title: '新建歌单', label: '歌单名称', placeholder: '例如：夜里开车', confirmText: '创建' });
       if (!name) return;
       const list = await createPlaylist(profileId, name);
       await addToPlaylist(list.id, track);
       toast('已加入「' + list.name + '」');
-      sheet.close();
-      return;
-    }
-    if (!row) return;
-    await addToPlaylist(row.dataset.list, track);
-    toast('已加入歌单');
-    sheet.close();
+      document.dispatchEvent(new CustomEvent('playlist:changed', { detail: { playlistId: list.id } }));
+    },
   });
+  // 桌面端与移动端都走同一套动作菜单：桌面浮出、移动抽屉
+  openActionMenu({ title: '加入歌单', items });
 }

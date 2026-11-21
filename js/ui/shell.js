@@ -5,7 +5,7 @@ import { player } from '../player/player.js';
 import { activeLineIndex } from '../player/lyrics.js';
 import { coverSources } from './cover.js';
 import { openTrackMenu } from './track-menu.js';
-import { isFavorite, toggleFavorite } from '../data/repo.js';
+import { isFavorite, toggleFavorite, saveSetting } from '../data/repo.js';
 
 let els = {};
 let viewMode = 'cover';
@@ -270,6 +270,38 @@ export function mountShell() {
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && store.state.player.mode === 'full') setMode('mini');
   });
+
+  // 桌面端：拖动左右边缘调整页面边距（写入 --gutter，并持久化）
+  if (window.matchMedia('(min-width: 840px)').matches) {
+    let latest = null;
+    ['left', 'right'].forEach((side) => {
+      const handle = document.createElement('div');
+      handle.className = 'gutter-handle';
+      handle.dataset.side = side;
+      handle.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(handle);
+      handle.addEventListener('pointerdown', (event) => {
+        event.preventDefault();
+        handle.classList.add('is-drag');
+        const startX = event.clientX;
+        const computed = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--gutter')) || 32;
+        const move = (moveEvent) => {
+          const delta = side === 'left' ? moveEvent.clientX - startX : startX - moveEvent.clientX;
+          const value = Math.min(220, Math.max(12, computed + delta));
+          latest = value;
+          document.documentElement.style.setProperty('--gutter', value + 'px');
+        };
+        const up = () => {
+          handle.classList.remove('is-drag');
+          window.removeEventListener('pointermove', move);
+          window.removeEventListener('pointerup', up);
+          if (latest !== null) saveSetting('prefs.pageGutter', Math.round(latest)).catch(() => {});
+        };
+        window.addEventListener('pointermove', move);
+        window.addEventListener('pointerup', up);
+      });
+    });
+  }
 
   const badge = document.querySelector('[data-nav-badge]');
   const refreshBadge = (state) => {
