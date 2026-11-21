@@ -557,7 +557,7 @@ body[data-paused="true"] .list-item__playing i { animation-play-state: paused; }
   color: var(--md-sys-color-on-surface);
   box-shadow: var(--elev-3);
   transform: translate(-50%, -46%) scale(.94); opacity: 0;
-  transition: transform var(--dur-6) var(--ease-emph), opacity var(--dur-4) var(--ease-std);
+  transition: transform var(--dur-6) var(--ease-emph), opacity var(--dur-4) var(--ease-std), background-color 400ms var(--ease-std);
 }
 .dialog.is-open { transform: translate(-50%, -50%) scale(1); opacity: 1; }
 .dialog__head { display: flex; flex-direction: column; gap: 16px; flex: 0 0 auto; }
@@ -576,7 +576,7 @@ body[data-paused="true"] .list-item__playing i { animation-play-state: paused; }
   background: var(--md-sys-color-surface-container-low);
   box-shadow: var(--elev-3);
   transform: translateY(100%);
-  transition: transform var(--dur-7) var(--ease-emph);
+  transition: transform var(--dur-7) var(--ease-emph), background-color 400ms var(--ease-std);
 }
 .sheet.is-open { transform: none; }
 .sheet__handle { width: 32px; height: 4px; border-radius: 2px; background: var(--md-sys-color-outline-variant); margin: 8px auto 12px; flex: 0 0 auto; }
@@ -654,7 +654,7 @@ body[data-paused="true"] .list-item__playing i { animation-play-state: paused; }
   display: flex; flex-direction: column;
   background: var(--md-sys-color-surface);
   transform: translateY(100%);
-  transition: transform var(--dur-7) var(--ease-emph);
+  transition: transform var(--dur-7) var(--ease-emph), background-color 400ms var(--ease-std);
   will-change: transform;
   overflow: hidden;
 }
@@ -1133,9 +1133,10 @@ img[data-cover].is-missing { opacity: 0; }
 
 
 /* 主题切换的全局过渡 */
-html.theme-transition *,
-html.theme-transition *::before,
-html.theme-transition *::after {
+/* 换色过渡：排除靠 transform 做进出场的容器，避免把它们的动画一起吃掉 */
+html.theme-transition *:not(.player):not(.sheet):not(.dialog):not(.menu--popover):not(.scrim):not(.player__bg),
+html.theme-transition *:not(.player):not(.sheet):not(.dialog):not(.menu--popover):not(.scrim)::before,
+html.theme-transition *:not(.player):not(.sheet):not(.dialog):not(.menu--popover):not(.scrim)::after {
   transition:
     background-color 400ms var(--ease-std),
     color 400ms var(--ease-std),
