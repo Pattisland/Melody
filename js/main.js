@@ -16,6 +16,7 @@ import { homeRoute } from './ui/pages/home.js';
 import searchPage from './ui/pages/search.js';
 import { libraryRoutes } from './ui/pages/library.js';
 import { meRoutes } from './ui/pages/me.js';
+import { collectionRoutes } from './ui/pages/collection.js';
 
 let tintToken = 0;
 let tintActive = false;
@@ -98,6 +99,7 @@ async function boot() {
   router.add(searchPage);
   for (const route of libraryRoutes) router.add(route);
   for (const route of meRoutes) router.add(route);
+  for (const route of collectionRoutes) router.add(route);
   router.start();
 
   applyPrefs(settings);

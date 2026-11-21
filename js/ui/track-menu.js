@@ -11,6 +11,7 @@ import { refreshCacheState } from './cache-state.js';
 import { openTrackInfo } from './track-info.js';
 import { store } from '../core/store.js';
 import { player } from '../player/player.js';
+import { router } from '../core/router.js';
 
 export async function openTrackMenu(track, options = {}) {
   const profileId = store.state.profileId;
@@ -36,6 +37,16 @@ export async function openTrackMenu(track, options = {}) {
       },
     },
     { icon: 'playlist_add', label: '加入歌单', onSelect: () => openPlaylistPicker(track) },
+    ...(track.artist ? [{
+      icon: 'person',
+      label: '查看歌手',
+      onSelect: () => router.go('/artist/' + encodeURIComponent(String(track.artist).split(' / ')[0])),
+    }] : []),
+    ...(track.album ? [{
+      icon: 'album',
+      label: '查看专辑',
+      onSelect: () => router.go('/album/' + encodeURIComponent(String(track.album))),
+    }] : []),
     {
       icon: subscribed ? 'person_remove' : 'person_add',
       label: subscribed ? '取消订阅这位歌手' : '订阅这位歌手',
