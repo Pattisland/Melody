@@ -52,17 +52,21 @@ function renderDock() {
 /** 五行固定歌词：替换文本而不是重建节点，才能过渡 */
 function paintLyrics(holder, lines, active) {
   if (!holder) return;
-  if (holder.childElementCount !== 5) {
-    holder.innerHTML = '<div class="line"></div><div class="line"></div><div class="line"></div><div class="line"></div><div class="line"></div>';
+  // 整首歌词一次铺开，靠 translateY 平滑滑到当前句
+  const lyricKey = lines.length + '|' + (lines[0] ? lines[0].text : '');
+  if (holder.dataset.count !== lyricKey) {
+    holder.dataset.count = lyricKey;
+    holder.innerHTML = '<div class="lyrics-track">' + lines.map((line, index) =>
+      '<div class="line" data-index="' + index + '">' + esc(line.text || '·') + '</div>').join('') + '</div>';
   }
-  const from = Math.max(0, active - 2);
-  const rows = holder.children;
-  for (let i = 0; i < 5; i += 1) {
-    const line = lines[from + i];
-    const text = line ? (line.text || '·') : '';
-    if (rows[i].textContent !== text) rows[i].textContent = text;
-    rows[i].classList.toggle('is-active', from + i === active);
-  }
+  const track = holder.firstElementChild;
+  if (!track) return;
+  const nodes = track.children;
+  for (let i = 0; i < nodes.length; i += 1) nodes[i].classList.toggle('is-active', i === active);
+  const node = nodes[active];
+  if (!node) return;
+  const offset = node.offsetTop + node.offsetHeight / 2 - holder.clientHeight / 2;
+  track.style.transform = 'translateY(' + (-offset) + 'px)';
 }
 
 function lyricsEmpty(holder, text) {

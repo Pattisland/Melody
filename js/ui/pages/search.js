@@ -34,6 +34,7 @@ async function renderHome(root) {
   const history = await listSearches(profileId, 40);
   root.innerHTML =
     '<div class="search-page">' +
+      '<h1 class="page-title">搜索</h1>' +
       searchForm('') +
       (history.length
         ? '<div class="section">' + sectionHeader('最近搜索',
