@@ -26,15 +26,20 @@ class Player {
     this.listenTimer = 0;
   }
 
-  /** 每秒累计真实收听时长；每 20 秒或暂停/切歌时落库 */
-  startListenClock() {
-    if (this.listenTimer) return;
-    this.listenTimer = setInterval(() => {
-      if (!this.audio || this.audio.paused) return;
-      this.listenMs += 1000;
-      if (this.listenMs % 20000 === 0) this.flushListen();
-    }, 1000);
+  /** 用播放位置的增量累计真实收听时长：拖动进度条（delta 过大）不计入 */
+  accumulateListen() {
+    if (!this.audio || this.audio.paused) { this._prevTime = this.audio ? this.audio.currentTime : 0; return; }
+    const position = this.audio.currentTime;
+    const delta = position - (this._prevTime || 0);
+    this._prevTime = position;
+    if (delta > 0 && delta < 2) this.listenMs += delta * 1000;
+    if (Math.floor(this.listenMs / 20000) > Math.floor((this._prevFlush || 0) / 20000)) {
+      this._prevFlush = this.listenMs;
+      this.flushListen();
+    }
   }
+
+  startListenClock() { this._prevTime = this.audio ? this.audio.currentTime : 0; this._prevFlush = 0; }
 
   flushListen() {
     if (!this.listenId) return;
@@ -42,7 +47,6 @@ class Player {
   }
 
   stopListenClock() {
-    if (this.listenTimer) { clearInterval(this.listenTimer); this.listenTimer = 0; }
     this.flushListen();
   }
 
@@ -65,6 +69,7 @@ class Player {
       if (now - this._lastTimeUpdate < 200) return;
       this._lastTimeUpdate = now;
       store.patch('player', { current: audio.currentTime });
+      this.accumulateListen();
       if (this.profileId && store.state.player.track && this._recorded !== store.state.player.track.id + ':' + Math.floor(audio.currentTime / 20)) {
         this._recorded = store.state.player.track.id + ':' + Math.floor(audio.currentTime / 20);
         recordPlay(this.profileId, store.state.player.track).catch(() => {});
