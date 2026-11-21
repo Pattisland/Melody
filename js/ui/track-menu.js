@@ -8,6 +8,7 @@ import {
 import { enqueue, taskOf } from '../player/queue.js';
 import { downloadTrack } from '../download/download.js';
 import { refreshCacheState } from './cache-state.js';
+import { openTrackInfo } from './track-info.js';
 import { store } from '../core/store.js';
 import { player } from '../player/player.js';
 
@@ -86,6 +87,7 @@ export async function openTrackMenu(track, options = {}) {
         if (options.onCacheChange) options.onCacheChange();
       },
     } : null,
+    { icon: 'info', label: '查看详细信息', onSelect: () => openTrackInfo(track) },
     {
       icon: 'queue_music',
       label: '加入播放队列',

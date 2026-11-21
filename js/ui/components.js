@@ -148,7 +148,7 @@ export function openActionMenu(options = {}) {
   const items = (options.items || []).filter(Boolean);
   const anchor = options.anchor;
   const rect = options.rect || (anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : null);
-  const desktop = window.matchMedia('(min-width: 840px)').matches && Boolean(rect);
+  const desktop = window.matchMedia('(min-width: 840px)').matches && Boolean(rect || point);
 
   if (!desktop) {
     const body = '<div class="menu menu--sheet">' + items.map(menuItemHTML).join('') + '</div>';
@@ -168,8 +168,9 @@ export function openActionMenu(options = {}) {
   const box = menu.getBoundingClientRect();
   const point = options.point || null;
   const validRect = rect && rect.width > 0 && rect.height > 0;
-  const anchorLeft = validRect ? rect.right : (point && point.x ? point.x : window.innerWidth - 24);
-  const anchorTop = validRect ? rect.bottom : (point && point.y ? point.y : 80);
+  const validPoint = point && (point.x || point.y);
+  const anchorLeft = validPoint ? point.x : (validRect ? rect.right : window.innerWidth - 24);
+  const anchorTop = validPoint ? point.y : (validRect ? rect.bottom : 80);
   let left = anchorLeft - box.width;
   left = Math.max(8, Math.min(left, window.innerWidth - box.width - 8));
   let top = anchorTop + 6;
@@ -266,7 +267,9 @@ export function attachSongList(root, tracks, handlers = {}) {
     if (!row) return;
     event.preventDefault();
     const track = byId.get(row.dataset.trackId);
-    if (track && handlers.onInfo) handlers.onInfo(track, row);
+    if (!track) return;
+    if (handlers.onMore) handlers.onMore(track, row.querySelector('[data-more]'), event);
+    else if (handlers.onInfo) handlers.onInfo(track, row);
   });
 
   list.addEventListener('keydown', (event) => {

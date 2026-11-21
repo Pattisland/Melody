@@ -94,7 +94,9 @@ function renderPlayer() {
   const active = activeLineIndex(lyrics.lines, state.current);
 
   node.innerHTML =
-    (blurEnabled() && thumb ? '<div class="player__bg"><img data-cover data-src="' + esc(thumb) + '" alt=""></div>' : '<div class="player__bg player__bg--plain"></div>') +
+    (blurEnabled() && thumb
+      ? '<div class="player__bg"><img data-cover data-src="' + esc(thumb) + '" data-fallbacks="' + esc(fallbacks) + '" alt=""></div>'
+      : '<div class="player__bg player__bg--plain"></div>') +
     '<div class="player__inner">' +
       '<div class="player__top">' +
         '<button class="icon-btn" data-collapse aria-label="收起">' + icon('keyboard_arrow_down') + '</button>' +

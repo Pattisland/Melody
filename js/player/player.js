@@ -1,7 +1,7 @@
 /* 播放引擎：单 audio 元素 + 队列 + 来源回退 */
 import { store } from '../core/store.js';
 import { resolveTrack, lyricsFor, artworkFor } from '../sources/registry.js';
-import { recordPlay, recordListen } from '../data/repo.js';
+import { recordPlay, recordListen, updateListenMs } from '../data/repo.js';
 import { parseLrc } from './lyrics.js';
 import { cacheGet } from './cache.js';
 
@@ -21,6 +21,29 @@ class Player {
     this._lastTimeUpdate = 0;
     this._recorded = '';
     this._abort = null;
+    this.listenId = null;
+    this.listenMs = 0;
+    this.listenTimer = 0;
+  }
+
+  /** 每秒累计真实收听时长；每 20 秒或暂停/切歌时落库 */
+  startListenClock() {
+    if (this.listenTimer) return;
+    this.listenTimer = setInterval(() => {
+      if (!this.audio || this.audio.paused) return;
+      this.listenMs += 1000;
+      if (this.listenMs % 20000 === 0) this.flushListen();
+    }, 1000);
+  }
+
+  flushListen() {
+    if (!this.listenId) return;
+    updateListenMs(this.listenId, this.listenMs).catch(() => {});
+  }
+
+  stopListenClock() {
+    if (this.listenTimer) { clearInterval(this.listenTimer); this.listenTimer = 0; }
+    this.flushListen();
   }
 
   init({ settings, profileId }) {
@@ -29,8 +52,8 @@ class Player {
     this.profileId = profileId;
     const audio = this.audio;
 
-    audio.addEventListener('play', () => store.patch('player', { playing: true }));
-    audio.addEventListener('pause', () => store.patch('player', { playing: false }));
+    audio.addEventListener('play', () => { store.patch('player', { playing: true }); this.startListenClock(); });
+    audio.addEventListener('pause', () => { store.patch('player', { playing: false }); this.stopListenClock(); });
     audio.addEventListener('waiting', () => store.patch('player', { loading: true }));
     audio.addEventListener('canplay', () => store.patch('player', { loading: false }));
     audio.addEventListener('playing', () => store.patch('player', { loading: false, error: null }));
@@ -47,11 +70,13 @@ class Player {
         recordPlay(this.profileId, store.state.player.track).catch(() => {});
       }
     });
-    audio.addEventListener('ended', () => this.handleEnded());
+    audio.addEventListener('ended', () => { this.stopListenClock(); this.handleEnded(); });
     audio.addEventListener('error', () => {
       const message = audio.error ? '播放失败（' + (audio.error.code || '?') + '）' : '播放失败';
       store.patch('player', { error: message, playing: false, loading: false });
     });
+    window.addEventListener('pagehide', () => this.flushListen());
+    document.addEventListener('visibilitychange', () => { if (document.hidden) this.flushListen(); });
     this.bindMediaSession();
     store.patch('player', { repeat: this.repeat, shuffle: this.shuffle });
   }
@@ -96,7 +121,14 @@ class Player {
       store.patch('player', { queue: this.queue.slice(), index: 0 });
     }
     store.patch('player', { track, loading: true, error: null, current: 0, duration: track.duration || 0 });
-    if (this.profileId) recordListen(this.profileId, track).catch(() => {});
+    this.stopListenClock();
+    this.listenId = null;
+    this.listenMs = 0;
+    if (this.profileId) {
+      recordListen(this.profileId, track)
+        .then((id) => { this.listenId = id; })
+        .catch(() => {});
+    }
     this.updateMediaSession(track);
     this.lyrics = { trackId: track.id, lines: [], loading: true, error: '' };
 

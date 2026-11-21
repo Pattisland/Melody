@@ -1087,3 +1087,64 @@ img[data-cover].is-missing { opacity: 0; }
 
 .task-row__progress.is-indet span { width: 40%; animation: indet 1.4s var(--ease-std) infinite; }
 
+
+
+/* ==========================================================================
+   桌面首页：一屏之内，板块内部滚动
+   ========================================================================== */
+@media (min-width: 840px) {
+  body[data-fixed="true"] { overflow: hidden; }
+  body[data-fixed="true"] .page {
+    display: flex; flex-direction: column;
+    height: 100dvh; overflow: hidden;
+    padding-top: 0; padding-bottom: 20px;
+  }
+  body[data-fixed="true"] .page-view { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+  body[data-fixed="true"] .home-head { flex: 0 0 auto; padding-top: 28px; }
+  body[data-fixed="true"] .waves { flex: 0 0 auto; }
+  body[data-fixed="true"] .home-main { flex: 1 1 auto; min-height: 0; }
+  .home-card { min-height: 0; overflow: hidden; }
+  .home-card__scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-right: 4px; }
+}
+
+/* 订阅：每个歌手一组，组内横向排列 */
+.album-row { display: flex; gap: 12px; overflow-x: auto; overflow-y: hidden; padding: 2px 2px 8px; }
+.album-row .media { flex: 0 0 128px; }
+.sub-artist + .sub-artist { margin-top: 18px; }
+
+/* 自绘滚动条 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--md-sys-color-outline) 55%, transparent) transparent;
+}
+::-webkit-scrollbar { width: 11px; height: 11px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--md-sys-color-outline) 50%, transparent);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+  min-height: 44px;
+}
+::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--md-sys-color-outline) 78%, transparent); background-clip: content-box; }
+::-webkit-scrollbar-corner { background: transparent; }
+
+
+
+/* 主题切换的全局过渡 */
+html.theme-transition *,
+html.theme-transition *::before,
+html.theme-transition *::after {
+  transition:
+    background-color 400ms var(--ease-std),
+    color 400ms var(--ease-std),
+    border-color 400ms var(--ease-std),
+    box-shadow 400ms var(--ease-std),
+    fill 400ms var(--ease-std) !important;
+}
+/* 没有封面时，播放器背景用主题色淡淡铺一层 */
+.player__bg--plain {
+  display: block;
+  background: color-mix(in srgb, var(--md-sys-color-primary) 14%, transparent);
+}
+

@@ -81,7 +81,7 @@ function topBlock(rows, range) {
 const albumIndex = new Map();
 
 function albumGrid(albums) {
-  return '<div class="media-grid media-grid--album">' + albums.slice(0, 6).map((album) =>
+  return '<div class="album-row">' + albums.slice(0, 6).map((album) =>
     '<button class="media media--album" type="button" data-album-key="' + esc(album.name.toLowerCase()) + '">' +
       '<span class="media__art media__art--square">' + icon('album') + coverMarkup(album.track, { size: 240 }) + '</span>' +
       '<span class="media__title">' + esc(album.name) + '</span>' +
@@ -203,19 +203,19 @@ async function mountHome(root) {
     '<div class="home-main">' +
       '<section class="home-card home-card--wide">' +
         sectionHeader('推荐', '<button class="btn btn--text btn--sm" data-refresh>' + icon('refresh') + '换一批</button>') +
-        '<div data-recs>' + (recs.length ? tileGrid(recs) : emptyState('auto_awesome', '曲库还空着', '收藏或缓存一些歌，这里就会开始推荐')) + '</div>' +
+        '<div class="home-card__scroll" data-recs>' + (recs.length ? tileGrid(recs) : emptyState('auto_awesome', '曲库还空着', '收藏或缓存一些歌，这里就会开始推荐')) + '</div>' +
       '</section>' +
       '<section class="home-card">' +
         sectionHeader('统计') +
-        '<div data-stats>' + statBlock(stats) + '</div>' +
+        '<div class="home-card__scroll" data-stats>' + statBlock(stats) + '</div>' +
       '</section>' +
       '<section class="home-card home-card--wide">' +
         sectionHeader('订阅') +
-        '<div data-subs>' + subBlock(subs, subFeed) + '</div>' +
+        '<div class="home-card__scroll" data-subs>' + subBlock(subs, subFeed) + '</div>' +
       '</section>' +
       '<section class="home-card">' +
         sectionHeader('常听', '<div class="tabbar tabbar--sm" data-range></div>') +
-        '<div data-top>' + topBlock(topRows, 'week') + '</div>' +
+        '<div class="home-card__scroll" data-top>' + topBlock(topRows, 'week') + '</div>' +
       '</section>' +
     '</div>';
 
@@ -260,5 +260,6 @@ export const homeRoute = {
   level: 1,
   title: '首页',
   dest: 'home',
+  fixed: true,
   mount: mountHome,
 };

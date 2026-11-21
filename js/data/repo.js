@@ -265,13 +265,22 @@ const DAY = 86400000;
 
 /** 每次开始播放记一条，用于统计与排行（不是历史列表） */
 export async function recordListen(profileId, track) {
-  if (!profileId || !track) return;
+  if (!profileId || !track) return null;
   const record = toRecord(track);
   await idb.put('tracks', record);
-  await idb.put('plays', {
+  return idb.put('plays', {
     profileId, trackId: record.id, track: record,
-    at: Date.now(), ms: (record.duration || 0) * 1000,
+    at: Date.now(), ms: 0,
   });
+}
+
+/** 播放过程中把真实收听时长写回当前这条播放记录 */
+export async function updateListenMs(id, ms) {
+  if (!id || !Number.isFinite(ms) || ms < 0) return;
+  const row = await idb.get('plays', id);
+  if (!row) return;
+  row.ms = Math.round(ms);
+  await idb.put('plays', row);
 }
 
 export async function listPlays(profileId, sinceMs) {

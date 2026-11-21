@@ -83,9 +83,9 @@ export async function byIndex(name, index, value) {
 
 export async function put(name, value) {
   const { store, wait } = await objectStore(name, 'readwrite');
-  store.put(value);
+  const request = store.put(value);
   await wait;
-  return value;
+  return request.result;
 }
 
 export async function putAll(name, values) {

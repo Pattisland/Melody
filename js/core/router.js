@@ -74,6 +74,7 @@ export const router = {
 
     document.body.dataset.level = String(level);
     document.body.dataset.detail = String(level > 1);
+    document.body.dataset.fixed = String(Boolean(route.fixed));
     const dest = route.dest || parsed.path.split('/')[1] || 'home';
     document.body.dataset.dest = dest;
     document.querySelectorAll('.nav__item').forEach((item) => {
