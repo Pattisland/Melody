@@ -18,6 +18,7 @@ export const DEFAULT_SETTINGS = {
   'prefs.notifyCache': true,
   'prefs.playerTint': true,
   'prefs.cacheConcurrency': 2,
+  'prefs.pageGutter': 154,
 };
 
 export async function loadSettings() {

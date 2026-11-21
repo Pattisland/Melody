@@ -103,7 +103,7 @@ async function boot() {
   router.start();
 
   applyPrefs(settings);
-  const savedGutter = Number(settings['prefs.pageGutter'] || 0);
+  const savedGutter = Number(settings['prefs.pageGutter'] || 154);
   if (savedGutter >= 12) document.documentElement.style.setProperty('--gutter', savedGutter + 'px');
 
   let lastTintKey = '';

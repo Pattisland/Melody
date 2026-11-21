@@ -1244,3 +1244,10 @@ html.theme-transition *:not(.player):not(.sheet):not(.dialog):not(.menu--popover
 .lyrics-track { display: flex; flex-direction: column; gap: 14px; will-change: transform; transition: transform 520ms cubic-bezier(.2, 0, 0, 1); }
 .player__lyrics .line { transition: opacity 420ms var(--ease-std), color 420ms var(--ease-std), transform 420ms var(--ease-emph); }
 
+
+/* 一级页面不再受最大宽度牵制，边距完全由 --gutter 决定 */
+@media (min-width: 840px) {
+  .page { max-width: none; margin: 0; }
+}
+.search-page > .page-title { margin-bottom: 16px; }
+
