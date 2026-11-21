@@ -2,6 +2,9 @@
 
 > 在线音乐搜索、播放、收藏与下载。纯静态、零构建、托管于 GitHub Pages。
 
+线上试用：<https://pattisland.github.io/Melody/> · 仓库：<https://github.com/Pattisland/Melody>
+（测试版：功能还在长，音源接口不稳时搜索会部分失败）
+
 应用本身**不提供任何内容**：搜索与播放直连第三方公开接口，音频只在你点开时流式取回；
 收藏、歌单、历史与缓存在浏览器本地（IndexedDB）持久保存。
 
