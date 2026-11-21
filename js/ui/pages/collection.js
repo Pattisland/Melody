@@ -16,10 +16,11 @@ async function renderCollection(root, ctx, kind) {
   try {
     const result = await searchAll(name, { settings: store.state.settings, limit: 40 });
     const all = result.tracks || [];
-    const key = name.toLowerCase();
+    const parts = name.split(' / ').map((part) => part.trim().toLowerCase()).filter(Boolean);
+    const hit = (value) => { const text = String(value || '').toLowerCase(); return parts.some((part) => text.includes(part)); };
     tracks = kind === 'artist'
-      ? all.filter((track) => String(track.artist || '').toLowerCase().includes(key))
-      : all.filter((track) => String(track.album || '').toLowerCase().includes(key));
+      ? all.filter((track) => hit(track.artist))
+      : all.filter((track) => hit(track.album));
     if (!tracks.length) tracks = all.slice(0, 30);
   } catch (err) {
     const status = root.querySelector('[data-status]');

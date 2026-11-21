@@ -35,14 +35,6 @@ async function renderMe(root) {
   root.innerHTML =
     '<h1 class="page-title">设置</h1>' +
     '<div class="section" style="margin-top:16px"><div class="group">' +
-      '<div class="list-item" style="cursor:default">' +
-        '<div class="list-item__art list-item__art--icon">' + icon('person') + '</div>' +
-        '<div class="list-item__body"><div class="list-item__title">' + esc((profile && profile.name) || '我的档案') + '</div>' +
-        '<div class="list-item__sub">当前档案 · 共 ' + profiles.length + ' 个</div></div>' +
-        '<button class="btn btn--text btn--sm" data-rename>重命名</button>' +
-      '</div>' +
-    '</div></div>' +
-    '<div class="section" style="margin-top:14px"><div class="group">' +
       navRow('palette', '主题配色', '莫奈取色 · 深浅色', '/me/theme') +
       navRow('tune', '偏好设置', '播放与界面细节', '/me/prefs') +
       navRow('link', '来源设置', '启用与回退顺序', '/me/sources') +
@@ -55,24 +47,6 @@ async function renderMe(root) {
     '</div></div>';
 
   root.querySelectorAll('[data-route]').forEach((row) => row.addEventListener('click', () => router.go(row.dataset.route)));
-  root.querySelector('[data-rename]').addEventListener('click', () => {
-    openDialog({
-      title: '重命名档案',
-      body: '<label class="field"><span class="field__label">档案名称</span>' +
-        '<input class="input" data-name value="' + esc((profile && profile.name) || '') + '" maxlength="24"></label>',
-      actions: [
-        { label: '取消', variant: 'text' },
-        { label: '保存', variant: 'filled', onClick: async (dialog) => {
-          const name = dialog.querySelector('[data-name]').value.trim();
-          if (!name) { toast('名字不能为空'); return false; }
-          await updateProfile(profile.id, { name });
-          store.set({ profiles: await listProfiles() });
-          toast('已重命名');
-          router.render();
-        } },
-      ],
-    });
-  });
 }
 
 /* ------------------------------ 个人资料 ------------------------------ */
@@ -375,10 +349,16 @@ async function renderPrefs(root) {
 async function renderData(root) {
   const profileId = store.state.profileId;
   const profiles = await listProfiles();
+  const current = profiles.find((row) => row.id === profileId);
+  const currentName = (current && current.name) || '我的档案';
   root.innerHTML =
     '<div class="group">' +
       '<div class="group__label">档案</div>' +
       navRow('person', '档案管理', profiles.length + ' 个档案 · 新建 / 切换 / 重命名', '/me/profile') +
+      '<div class="list-item" data-act="rename-profile" role="button" tabindex="0">' +
+        '<div class="list-item__art list-item__art--icon">' + icon('edit') + '</div>' +
+        '<div class="list-item__body"><div class="list-item__title">重命名当前档案</div>' +
+        '<div class="list-item__sub">' + esc(currentName) + '</div></div></div>' +
     '</div>' +
     '<div class="group">' +
       '<div class="group__label">数据</div>' +
@@ -461,6 +441,25 @@ async function renderData(root) {
   root.querySelectorAll('[data-act]').forEach((row) => row.addEventListener('click', async () => {
     const act = row.dataset.act;
     if (act === 'import') { importInput.click(); return; }
+    if (act === 'rename-profile') {
+      openDialog({
+        title: '重命名档案',
+        body: '<label class="field"><span class="field__label">档案名称</span>' +
+          '<input class="input" data-name value="' + esc(currentName) + '" maxlength="24"></label>',
+        actions: [
+          { label: '取消', variant: 'text' },
+          { label: '保存', variant: 'filled', onClick: async (dialog) => {
+            const name = dialog.querySelector('[data-name]').value.trim();
+            if (!name) { toast('名字不能为空'); return false; }
+            await updateProfile(profileId, { name });
+            store.set({ profiles: await listProfiles() });
+            toast('已重命名');
+            router.render();
+          } },
+        ],
+      });
+      return;
+    }
     if (act === 'export') {
       const [allProfiles, settingsRows, favorites, playlists, items] = await Promise.all([
         listProfiles(),

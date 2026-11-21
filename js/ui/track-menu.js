@@ -37,11 +37,11 @@ export async function openTrackMenu(track, options = {}) {
       },
     },
     { icon: 'playlist_add', label: '加入歌单', onSelect: () => openPlaylistPicker(track) },
-    ...(track.artist ? [{
+    ...(track.artist ? String(track.artist).split(' / ').map((name) => name.trim()).filter(Boolean).slice(0, 3).map((name) => ({
       icon: 'person',
-      label: '查看歌手',
-      onSelect: () => router.go('/artist/' + encodeURIComponent(String(track.artist).split(' / ')[0])),
-    }] : []),
+      label: '查看歌手 · ' + name,
+      onSelect: () => router.go('/artist/' + encodeURIComponent(name)),
+    })) : []),
     ...(track.album ? [{
       icon: 'album',
       label: '查看专辑',

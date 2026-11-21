@@ -264,6 +264,7 @@ async function loadMore(root) {
 
 export default {
   path: '/search',
+  cache: true,
   level: (ctx) => (ctx.query.q ? 2 : 1),
   title: (ctx) => (ctx.query.q ? '搜索结果' : '搜索'),
   dest: 'search',
