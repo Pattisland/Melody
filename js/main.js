@@ -1,7 +1,7 @@
 /* 启动：打开数据库 -> 读取设置 -> 应用主题 -> 挂载外壳 -> 注册路由 */
 import { store, on } from './core/store.js';
 import { router } from './core/router.js';
-import { applyTheme, sourceColorFromUrl } from './core/theme.js';
+import { applyTheme, sourceColorFromUrl, colorFromImageElement } from './core/theme.js';
 import { openDb } from './data/db.js';
 import { loadSettings, ensureActiveProfile, getTrackColor, saveTrackColor } from './data/repo.js';
 import { mountShell } from './ui/shell.js';
@@ -16,43 +16,41 @@ import searchPage from './ui/pages/search.js';
 import { libraryRoutes } from './ui/pages/library.js';
 import { meRoutes } from './ui/pages/me.js';
 
-let coverToken = 0;
-let coverActive = false;
-let lastCoverTrack = '';
-let internal = false;
+let tintToken = 0;
+let tintActive = false;
 
-/** 封面取色是全局的：整界面（导航、列表、弹窗）都跟着当前封面走 */
-async function syncCoverTheme() {
+/** 播放器展开时，整套全局配色临时换成封面色；收起后恢复 */
+async function syncPlayerTint() {
+  const p = store.state.player;
   const theme = store.state.theme;
-  if (!theme.fromCover) {
-    if (coverActive) {
-      coverActive = false;
-      internal = true;
-      store.patch('theme', { coverSeed: '' });
-      internal = false;
+  const settings = store.state.settings || {};
+  const track = p.track;
+  const enabled = settings['prefs.playerTint'] !== false;
+  const should = p.mode === 'full' && enabled && track && artworkCandidates(track, 200).length;
+  if (!should) {
+    if (tintActive) {
+      tintActive = false;
       applyTheme(theme);
     }
     return;
   }
-  const track = store.state.player.track;
-  if (!track) return;
-  const token = (coverToken += 1);
-  const cached = await getTrackColor(track.id);
-  if (token !== coverToken) return;
-  let color = cached;
+  const token = (tintToken += 1);
+  let color = await getTrackColor(track.id).catch(() => '');
+  if (token !== tintToken) return;
   if (!color) {
-    // 能读到像素的封面优先：网易云的 CDN 带 ACAO，QQ/酷狗不带
-    const rank = (url) => (/server=netease|music\.126\.net/i.test(url) ? 3 : (/audius|doubanio|hdslb/i.test(url) ? 2 : 1));
-    const candidates = artworkCandidates(track, 300).sort((a, b) => rank(b) - rank(a));
-    color = await sourceColorFromUrl(candidates);
-    if (token !== coverToken) return;
-    if (color) saveTrackColor(track.id, color).catch(() => {});
+    const img = document.querySelector('.player__cover img');
+    if (img) color = await colorFromImageElement(img);
   }
-  coverActive = true;
-  internal = true;
-  store.patch('theme', { coverSeed: color || '' });
-  internal = false;
-  applyTheme({ ...theme, seed: color || theme.seed });
+  if (token !== tintToken) return;
+  if (!color) color = await sourceColorFromUrl(artworkCandidates(track, 200));
+  if (token !== tintToken) return;
+  if (!color) {
+    if (tintActive) { tintActive = false; applyTheme(theme); }
+    return;
+  }
+  tintActive = true;
+  saveTrackColor(track.id, color).catch(() => {});
+  applyTheme({ ...theme, seed: color });
 }
 
 /** 偏好设置 -> 根元素 */
@@ -103,14 +101,18 @@ async function boot() {
 
   applyPrefs(settings);
 
+  let lastTintKey = '';
   on(['player'], () => {
-    const id = store.state.player.track ? store.state.player.track.id : '';
-    if (id === lastCoverTrack) return;
-    lastCoverTrack = id;
-    syncCoverTheme();
+    const p = store.state.player;
+    const key = (p.mode || '') + '|' + (p.track ? p.track.id : '');
+    if (key === lastTintKey) return;
+    lastTintKey = key;
+    syncPlayerTint();
   });
-  on(['theme'], () => { if (!internal) syncCoverTheme(); });
-  on(['settings'], () => { applyPrefs(store.state.settings); });
+  on(['settings'], () => {
+    applyPrefs(store.state.settings);
+    syncPlayerTint();
+  });
 
   refreshCacheState(active.profile.id).catch(() => {});
   on(['profileId'], () => { refreshCacheState(store.state.profileId).catch(() => {}); });

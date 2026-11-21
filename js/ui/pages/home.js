@@ -190,7 +190,7 @@ async function mountHome(root) {
   root.innerHTML =
     '<header class="home-head">' +
       '<div class="home-head__text">' +
-        '<h1 class="home-head__title">MELODY</h1>' +
+        '<h1 class="page-title home-head__title">MELODY</h1>' +
         '<p class="home-head__tagline">永不消逝的音声</p>' +
       '</div>' +
       '<div class="home-head__quick">' +

@@ -23,8 +23,7 @@ async function renderLibrary(root) {
   const stats = { recent: history.length, favorites: favorites.length };
 
   root.innerHTML =
-    '<div class="hero" style="padding-bottom:0"><h1 class="t-headline-l" style="font-weight:650">曲库</h1>' +
-    '<p class="hero__sub">' + esc((await getProfile(profileId).then((p) => (p && p.name) || '我的档案'))) + ' · 收藏、歌单与缓存</p></div>' +
+    '<h1 class="page-title">曲库</h1>' +
     '<div class="section"><div class="list">' + SYSTEM.map((item) =>
       '<div class="list-item" data-sys="' + item.key + '" role="button" tabindex="0">' +
         '<div class="list-item__art list-item__art--icon">' + icon(item.icon) + '</div>' +

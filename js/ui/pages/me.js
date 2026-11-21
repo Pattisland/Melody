@@ -195,37 +195,42 @@ async function setTheme(patch) {
 async function renderTheme(root) {
   const theme = store.state.theme;
   root.innerHTML =
-    '<div class="stack gap-16">' +
-      '<div class="section__title">外观模式</div>' +
-      '<div class="segmented" data-mode>' +
-        ['system', 'light', 'dark'].map((mode) =>
-          '<button class="segmented__item" data-value="' + mode + '" aria-selected="' + (theme.mode === mode) + '">' +
-          esc({ system: '跟随系统', light: '浅色', dark: '深色' }[mode]) + '</button>').join('') +
+    '<div class="group">' +
+      '<div class="group__label">外观</div>' +
+      '<div class="theme-block">' +
+        '<div class="segmented" data-mode style="width:100%">' +
+          [['system', '跟随系统'], ['light', '浅色'], ['dark', '深色']].map(([mode, label]) =>
+            '<button class="segmented__item" data-value="' + mode + '" aria-selected="' + (theme.mode === mode) + '">' + label + '</button>').join('') +
+        '</div>' +
+        '<div class="theme-row"><span class="theme-row__label">配色方案</span>' +
+          '<div class="chip-row" data-variant>' + VARIANTS.map((variant) =>
+            '<button class="chip' + (theme.variant === variant.key ? ' chip--selected' : '') + '" data-value="' + variant.key + '" title="' + esc(variant.desc) + '">' + esc(variant.name) + '</button>').join('') +
+          '</div></div>' +
       '</div>' +
-      '<div class="section__title mt-16">配色方案</div>' +
-      '<div class="chip-row" data-variant>' + VARIANTS.map((variant) =>
-        '<button class="chip' + (theme.variant === variant.key ? ' chip--selected' : '') + '" data-value="' + variant.key + '" title="' + esc(variant.desc) + '">' + esc(variant.name) + '</button>').join('') + '</div>' +
-      '<div class="section__title mt-16">种子色</div>' +
-      '<div class="tile-grid" style="grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:12px" data-presets>' +
-        SEED_PRESETS.map((preset) =>
-          '<button class="preset" data-hex="' + preset.hex + '" title="' + esc(preset.name) + '" style="display:flex;flex-direction:column;align-items:center;gap:6px;background:none;border:0;cursor:pointer">' +
-            '<span style="width:48px;height:48px;border-radius:var(--shape-full);background:' + preset.hex + ';box-shadow:' + (theme.seed === preset.hex ? '0 0 0 3px var(--md-sys-color-primary)' : 'none') + '"></span>' +
-            '<span class="t-label-s muted">' + esc(preset.name) + '</span>' +
-          '</button>').join('') +
+    '</div>' +
+    '<div class="group">' +
+      '<div class="group__label">种子色</div>' +
+      '<div class="theme-block">' +
+        '<div class="swatches" data-presets>' + SEED_PRESETS.map((preset) =>
+          '<button class="swatch' + (theme.seed === preset.hex ? ' is-active' : '') + '" data-hex="' + preset.hex + '" title="' + esc(preset.name) + '">' +
+            '<span class="swatch__dot" style="background:' + preset.hex + '"></span>' +
+            '<span class="swatch__name">' + esc(preset.name) + '</span>' +
+          '</button>').join('') + '</div>' +
+        '<div class="theme-row">' +
+          '<input type="color" class="theme-color" data-color value="' + esc(theme.seed) + '" aria-label="自定义颜色">' +
+          '<input class="input theme-hex" data-hex-input value="' + esc(theme.seed) + '" aria-label="十六进制颜色">' +
+          '<button class="btn btn--tonal btn--sm" data-apply-hex>应用</button>' +
+        '</div>' +
       '</div>' +
-      '<div class="row gap-8 mt-8">' +
-        '<input type="color" data-color value="' + esc(theme.seed) + '" aria-label="自定义颜色" style="width:56px;height:48px;border:0;background:none;padding:0;border-radius:var(--shape-sm)">' +
-        '<input class="input" data-hex-input value="' + esc(theme.seed) + '" style="height:48px;flex:1" aria-label="十六进制颜色">' +
-        '<button class="btn btn--tonal" data-apply-hex>应用</button>' +
+    '</div>' +
+    '<div class="group">' +
+      '<div class="group__label">封面取色</div>' +
+      '<div class="list-item" style="cursor:default">' +
+        '<div class="list-item__body"><div class="list-item__title">播放器展开时全局跟随封面</div>' +
+        '<div class="list-item__sub">展开播放器会用封面主色重算整套配色，收起后恢复；开关在偏好设置里</div></div>' +
+        '<button class="btn btn--text btn--sm" data-goto-prefs>去设置</button>' +
       '</div>' +
-      '<p class="t-body-s muted" style="padding:4px 20px 0">封面取色需要封面允许跨源读取。网易云封面通常可以；QQ/酷狗封面偶尔取不到，此时保持你选的颜色。</p>' +
-      '<div class="divider"></div>' +
-      '<div class="list-item" style="cursor:default"><div class="list-item__art list-item__art--icon">' + icon('palette') + '</div>' +
-        '<div class="list-item__body"><div class="list-item__title">跟随封面取色</div>' +
-        '<div class="list-item__sub">全局生效：每次切歌都用封面主色重算整套配色' +
-        (theme.fromCover && theme.coverSeed ? ' · 当前 ' + esc(theme.coverSeed) : '') + '</div></div>' +
-        '<label class="switch"><input type="checkbox" data-cover ' + (theme.fromCover ? 'checked' : '') + '><span class="switch__track"></span><span class="switch__thumb"></span></label>' +
-      '</div>' +
+      '<p class="t-body-s muted" style="padding:4px 20px 14px">封面需要允许跨源读取；网易云封面通常可以，QQ/酷狗偶尔取不到。</p>' +
     '</div>';
 
   root.querySelectorAll('[data-mode] .segmented__item').forEach((button) => {
@@ -246,9 +251,8 @@ async function renderTheme(root) {
     setTheme({ seed: normalizeSeed(hexInput.value) });
     renderTheme(root);
   });
-  root.querySelector('[data-cover]').addEventListener('change', (event) => {
-    setTheme({ fromCover: event.target.checked });
-  });
+  const goPrefs = root.querySelector('[data-goto-prefs]');
+  if (goPrefs) goPrefs.addEventListener('click', () => router.go('/me/prefs'));
 }
 
 /* ------------------------------ 来源设置 ------------------------------ */

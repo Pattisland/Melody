@@ -20,11 +20,12 @@ function emptyStateFor() {
   };
 }
 
-function searchForm(value) {
+function searchForm(value, withProgress) {
   return '<form class="searchbar searchbar--page" role="search" data-search-form>' +
     '<span class="icon" aria-hidden="true" style="margin-left:8px">search</span>' +
     '<input class="searchbar__input" type="search" name="q" value="' + esc(value) + '" placeholder="搜索歌曲、歌手或专辑" autocomplete="off" enterkeyhint="search" aria-label="搜索">' +
     '<button class="icon-btn" type="submit" aria-label="搜索">' + icon('arrow_forward') + '</button>' +
+    (withProgress ? '<span class="search-progress" data-progress><span class="search-progress__bar"></span></span>' : '') +
   '</form>';
 }
 
@@ -78,8 +79,7 @@ async function renderHome(root) {
 function resultsShell(root, q) {
   root.innerHTML =
     '<div class="results-page">' +
-      searchForm(q) +
-      '<div class="search-progress" data-progress><span class="search-progress__bar"></span></div>' +
+      searchForm(q, true) +
       '<div class="results-head" data-results-head></div>' +
       '<div data-results-body><div class="stack gap-8">' +
         Array.from({ length: 6 }).map(() => '<div class="list-item"><div class="list-item__art skeleton"></div><div class="list-item__body"><div class="skeleton" style="height:14px;width:52%"></div><div class="skeleton mt-8" style="height:12px;width:34%"></div></div></div>').join('') +
