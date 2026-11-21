@@ -820,7 +820,7 @@ body[data-paused="true"] .list-item__playing i { animation-play-state: paused; }
 .media-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; }
 .media { max-width: 100%; }
 @media (min-width: 840px) {
-  .media-grid { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+  .media-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
 }
 .media {
   display: flex; flex-direction: column; gap: 8px; min-width: 0;
@@ -1170,11 +1170,9 @@ html.theme-transition *:not(.player):not(.sheet):not(.dialog):not(.menu--popover
 @media (min-width: 840px) {
   .home-card__scroll { container-type: size; }
   /* 封面按板块可用高度收缩，保证下面那行字一定在可视区 */
-  /* 铺满整行：宽度交给网格，高度给封面设上限，保证下面那行字可见 */
-  .media { max-width: none; }
-  .media__art { max-height: calc(100cqh - 78px); }
-  .album-row .media { max-width: none; }
-  .album-row .media__art { max-height: calc(100cqh - 78px); }
+  /* 封面始终是正方形，边长取板块可用高度；网格不拉伸单品 */
+  .media { max-width: min(320px, calc(100cqh - 78px)); }
+  .album-row .media { max-width: min(210px, calc(100cqh - 78px)); }
   /* 统计板块铺满并在空间不足时压缩 */
   .home-card__scroll[data-stats] .stats { height: 100%; justify-content: space-between; gap: 12px; }
   .home-card__scroll[data-stats] .bars { flex: 0 1 96px; min-height: 42px; height: auto; }
