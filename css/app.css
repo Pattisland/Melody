@@ -640,9 +640,10 @@ body[data-paused="true"] .list-item__playing i { animation-play-state: paused; }
 @media (min-width: 840px) {
   .dock {
     left: var(--nav-w); right: 0; width: auto; bottom: 18px;
-    transform: none; padding: 0 var(--gutter);
+    transform: none; padding: 0 24px;
   }
-  .dock__inner { height: 72px; max-width: calc(var(--maxw) - 2 * var(--gutter)); margin: 0 auto; }
+  /* 迷你条固定宽度居中，不参与页面边距拖动 */
+  .dock__inner { height: 72px; max-width: 1120px; margin: 0 auto; }
 }
 /* 底栏常驻后 dock 始终在底栏之上 */
 
@@ -1278,9 +1279,27 @@ html.theme-transition *:not(.player):not(.sheet):not(.dialog):not(.menu--popover
 }
 
 
-/* 悬浮条与浮动按钮跟随页面边距，不再用 --maxw 居中 */
+/* 迷你条不跟随页面边距；浮动按钮贴右下角固定 */
 @media (min-width: 840px) {
-  .dock__inner { max-width: none; margin: 0; padding-left: var(--gutter); padding-right: var(--gutter); }
-  .fab { right: calc(var(--gutter) + 8px); }
+  .dock { padding: 0 24px; }
+  .dock__inner { max-width: 1120px; margin: 0 auto; }
+  .fab { right: 28px; }
 }
 
+
+
+/* 歌词窗口：高度不超过封面，上下半透明渐隐 */
+.player__lyrics {
+  position: relative;
+  flex: 0 0 auto;
+  justify-content: flex-start;
+  padding: 0;
+  height: min(72vw, 340px);
+  max-height: 100%;
+  overflow: hidden;
+  mask-image: linear-gradient(180deg, transparent 0, #000 16%, #000 84%, transparent 100%);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 16%, #000 84%, transparent 100%);
+}
+@media (min-width: 900px) {
+  .player__lyrics { height: min(30vw, 340px); }
+}
