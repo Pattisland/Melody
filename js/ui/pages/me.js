@@ -387,6 +387,11 @@ async function renderData(root) {
         '<div class="list-item__body"><div class="list-item__title">导出配置</div>' +
         '<div class="list-item__sub">档案、设置、收藏与歌单（不含音频）</div></div>' +
         '<div class="list-item__trail">' + icon('chevron_right') + '</div></div>' +
+      '<div class="list-item" data-act="import" role="button" tabindex="0">' +
+        '<div class="list-item__art list-item__art--icon">' + icon('file_upload') + '</div>' +
+        '<div class="list-item__body"><div class="list-item__title">导入配置</div>' +
+        '<div class="list-item__sub">用之前导出的 JSON 覆盖档案、设置、收藏与歌单</div></div>' +
+        '<div class="list-item__trail">' + icon('chevron_right') + '</div></div>' +
       '<div class="list-item" data-act="cleanthumbs" role="button" tabindex="0">' +
         '<div class="list-item__art list-item__art--icon">' + icon('cleaning_services') + '</div>' +
         '<div class="list-item__body"><div class="list-item__title">清理临时缓存</div>' +
@@ -398,6 +403,7 @@ async function renderData(root) {
         '<div class="list-item__sub">保留档案与歌曲数据，只重置设置项</div></div>' +
         '<div class="list-item__trail">' + icon('chevron_right') + '</div></div>' +
     '</div>' +
+    '<input type="file" accept="application/json,.json" hidden data-import-file>' +
     '<div class="group">' +
       '<div class="list-item" data-act="wipe" role="button" tabindex="0">' +
         '<div class="list-item__art list-item__art--icon" style="color:var(--md-sys-color-error)">' + icon('delete_forever') + '</div>' +
@@ -407,8 +413,54 @@ async function renderData(root) {
     '</div>';
 
   root.querySelectorAll('[data-route]').forEach((row) => row.addEventListener('click', () => router.go(row.dataset.route)));
+  const importInput = root.querySelector('[data-import-file]');
+  importInput.addEventListener('change', async () => {
+    const file = importInput.files && importInput.files[0];
+    importInput.value = '';
+    if (!file) return;
+    let payload;
+    try {
+      payload = JSON.parse(await file.text());
+    } catch (err) {
+      toast('不是有效的 JSON 文件');
+      return;
+    }
+    if (!payload || payload.app !== 'Melody') {
+      toast('不是 Melody 的备份文件');
+      return;
+    }
+    const counts = [
+      (payload.profiles || []).length + ' 个档案',
+      (payload.favorites || []).length + ' 条收藏',
+      (payload.playlists || []).length + ' 个歌单',
+    ].join(' · ');
+    openDialog({
+      title: '导入配置？',
+      description: '会覆盖当前的档案、设置、收藏与歌单（已缓存的音频不受影响）。导入内容：' + counts,
+      actions: [
+        { label: '取消', variant: 'text' },
+        { label: '覆盖导入', variant: 'filled', onClick: async () => {
+          try {
+            const names = ['profiles', 'favorites', 'playlists', 'playlistItems'];
+            await Promise.all(names.map((name) => idb.clear(name)));
+            await idb.clear('settings');
+            for (const name of names) {
+              if (Array.isArray(payload[name]) && payload[name].length) await idb.putAll(name, payload[name]);
+            }
+            if (Array.isArray(payload.settings) && payload.settings.length) await idb.putAll('settings', payload.settings);
+            toast('导入完成，正在刷新…');
+            setTimeout(() => location.reload(), 700);
+          } catch (err) {
+            toast('导入失败：' + err.message);
+          }
+        } },
+      ],
+    });
+  });
+
   root.querySelectorAll('[data-act]').forEach((row) => row.addEventListener('click', async () => {
     const act = row.dataset.act;
+    if (act === 'import') { importInput.click(); return; }
     if (act === 'export') {
       const [allProfiles, settingsRows, favorites, playlists, items] = await Promise.all([
         listProfiles(),

@@ -802,7 +802,7 @@ body[data-paused="true"] .list-item__playing i { animation-play-state: paused; }
 
 @media (min-width: 840px) {
   .home-head { padding: 40px 0 4px; }
-  .waves { height: 176px; margin: 20px 0 30px; }
+  .waves { height: 64px; margin: 8px 0 14px; }
   .home-main {
     display: grid;
     grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);

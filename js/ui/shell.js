@@ -35,12 +35,13 @@ function renderDock() {
   if (!state.track) { dock.hidden = true; dock.innerHTML = ''; return; }
   dock.hidden = false;
   const track = state.track;
-  const art = artFor(track, 120);
+  const artList = coverSources(track, 120);
+  const art = artList[0] || '';
   dock.innerHTML =
     '<div class="dock__inner" data-dock-open role="button" tabindex="0" aria-label="展开播放器">' +
       '<div class="dock__progress"><span style="width:' + (state.duration ? (state.current / state.duration) * 100 : 0) + '%"></span></div>' +
       '<div class="dock__art">' + icon('music_note') +
-        (art ? '<img data-cover data-src="' + esc(art) + '" decoding="async" referrerpolicy="no-referrer" alt="">' : '') + '</div>' +
+        (art ? '<img data-cover data-src="' + esc(art) + '" data-fallbacks="' + esc(artList.slice(1).join('|')) + '" decoding="async" referrerpolicy="no-referrer" alt="">' : '') + '</div>' +
       '<div class="dock__body"><div class="dock__title">' + esc(track.title) + '</div>' +
       '<div class="dock__artist">' + esc(track.artist || '未知歌手') + '</div></div>' +
       '<button class="icon-btn" data-dock-toggle aria-label="' + (state.playing ? '暂停' : '播放') + '">' + icon(state.playing ? 'pause' : 'play_arrow') + '</button>' +
@@ -75,8 +76,12 @@ function renderPlayer() {
   const state = store.state.player;
   if (!state.track) { node.setAttribute('aria-hidden', 'true'); return; }
   const track = state.track;
-  const thumb = artFor(track, 200);
-  const full = artFor(track, 640);
+  // 缩略图用和列表完全相同的尺寸，并且带上候选回退（某些源的第一张图会 404）
+  const thumbList = coverSources(track, 120);
+  const fullList = coverSources(track);
+  const thumb = thumbList[0] || '';
+  const full = fullList[0] || thumb;
+  const fallbacks = thumbList.slice(1).join('|');
   const isOpen = state.mode === 'full';
   const desktop = window.matchMedia('(min-width: 900px)').matches;
   node.classList.toggle('is-open', isOpen);
@@ -103,7 +108,7 @@ function renderPlayer() {
       '<div class="player__body" data-mode="' + (desktop ? 'both' : viewMode) + '">' +
         '<div class="player__stage" data-stage>' +
           '<div class="player__cover" data-cover-full="' + esc(full) + '">' + icon('music_note', 'icon--72') +
-          (thumb ? '<img data-cover data-src="' + esc(thumb) + '" data-full="' + esc(full) + '" decoding="async" referrerpolicy="no-referrer" alt="">' : '') +
+          (thumb ? '<img data-cover data-src="' + esc(thumb) + '" data-fallbacks="' + esc(fallbacks) + '" data-full="' + esc(full) + '" decoding="async" referrerpolicy="no-referrer" alt="">' : '') +
           '</div>' +
         '</div>' +
         '<div class="player__panel"><div class="player__lyrics" data-lyrics>' +
@@ -219,7 +224,7 @@ export function mountShell() {
     const next = [
       p.track ? p.track.id : '',
       p.track ? p.track.title : '',
-      p.playing, p.mode, p.loading, p.error, p.repeat, p.shuffle,
+      p.playing, p.mode, p.error, p.repeat, p.shuffle,
     ].join('|');
     if (next === signature) { updateProgress(); return; }
     signature = next;

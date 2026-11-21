@@ -5,6 +5,7 @@ import { getThumb, putThumb, trimThumbs } from '../data/repo.js';
 
 const mem = new Map();
 const inflight = new Set();
+let thumbWrites = 0;
 let engineInstalled = false;
 
 export function sized(url, size) {
@@ -36,7 +37,11 @@ async function hydrateImg(img) {
   if (!url) return;
   if (mem.has(url)) { img.src = mem.get(url); return; }
   try {
-    const blob = await getThumb(url);
+    // 缓存读取不能拖住显示：最多等 300ms，超时直接用网络地址
+    const blob = await Promise.race([
+      getThumb(url),
+      new Promise((resolve) => setTimeout(() => resolve(null), 300)),
+    ]);
     if (blob) {
       const objectUrl = URL.createObjectURL(blob);
       mem.set(url, objectUrl);
@@ -60,7 +65,8 @@ function cacheRemote(url, img) {
       if (!blob || blob.size < 200 || blob.size > 400 * 1024) return;
       await putThumb(url, blob);
       if (img && !img.src) img.src = url;
-      trimThumbs(400).catch(() => {});
+      thumbWrites += 1;
+      if (thumbWrites % 25 === 0) trimThumbs(400).catch(() => {});
     })
     .catch(() => {})
     .finally(() => inflight.delete(url));
