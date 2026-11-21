@@ -80,6 +80,46 @@ function topBlock(rows, range) {
 
 const albumIndex = new Map();
 
+/* 桌面端：按板块可用宽高算出列数，让正方形封面正好铺满整行 */
+let gridHosts = [];
+let gridObserver = null;
+
+function layoutTileGrids() {
+  if (!gridHosts.length) return;
+  const desktop = window.matchMedia('(min-width: 840px)').matches;
+  gridHosts.forEach((host) => {
+    const grid = host.querySelector('.media-grid');
+    if (!grid) return;
+    if (!desktop) {
+      grid.style.gridTemplateColumns = '';
+      grid.style.removeProperty('--tile');
+      return;
+    }
+    const gap = 14;
+    const availW = host.clientWidth - 8;
+    const availH = host.clientHeight - 10;
+    const maxSide = Math.max(88, Math.min(320, availH - 74));
+    const cols = Math.max(1, Math.floor((availW + gap) / (maxSide + gap)));
+    const colWidth = Math.floor((availW - (cols - 1) * gap) / cols);
+    grid.style.gridTemplateColumns = 'repeat(' + cols + ', minmax(0, 1fr))';
+    grid.style.setProperty('--tile', colWidth + 'px');
+  });
+}
+
+function watchGrids(root) {
+  gridHosts = Array.from(root.querySelectorAll('.home-card__scroll'));
+  layoutTileGrids();
+  if (gridObserver) gridObserver.disconnect();
+  if (typeof ResizeObserver !== 'undefined') {
+    gridObserver = new ResizeObserver(() => layoutTileGrids());
+    gridHosts.forEach((host) => gridObserver.observe(host));
+  }
+  if (!watchGrids.bound) {
+    window.addEventListener('resize', layoutTileGrids, { passive: true });
+    watchGrids.bound = true;
+  }
+}
+
 function albumGrid(albums) {
   return '<div class="album-row">' + albums.slice(0, 6).map((album) =>
     '<button class="media media--album" type="button" data-album-key="' + esc(album.name.toLowerCase()) + '">' +
@@ -219,6 +259,7 @@ async function mountHome(root) {
       '</section>' +
     '</div>';
 
+  watchGrids(root);
   const rangeBar = root.querySelector('[data-range]');
   rangeBar.innerHTML = RANGES.map((range) =>
     '<button class="tabbar__tab" data-range-key="' + range.key + '" aria-selected="' + (range.key === 'week') + '">' + range.label + '</button>').join('');

@@ -1190,3 +1190,10 @@ html.theme-transition *:not(.player):not(.sheet):not(.dialog):not(.menu--popover
   body[data-fixed="true"] .page { max-width: none; margin: 0; }
 }
 
+
+/* 桌面：封面填满网格列，边长由 JS 写入的 --tile 控制 */
+@media (min-width: 840px) {
+  .home-card__scroll .media { max-width: var(--tile, 320px); }
+  .home-card__scroll .media__art { width: 100%; }
+}
+
