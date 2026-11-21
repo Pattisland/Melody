@@ -1,5 +1,5 @@
 /* Audius：合法免费全曲源（api.audius.co，CORS 全开） */
-import { trackKey } from '../core/util.js';
+import { trackKey, textOf } from '../core/util.js';
 
 const BASE = 'https://api.audius.co/v1';
 const APP = 'Melody';
@@ -20,9 +20,9 @@ function toItem(track) {
   const artist = (track.user && (track.user.name || track.user.handle)) || 'Audius';
   return {
     id: trackKey(track.title, artist),
-    title: String(track.title || ''),
+    title: textOf(track.title),
     artist,
-    album: String(track.album_backlink || ''),
+    album: textOf(track.album_backlink),
     duration: Number(track.duration) || 0,
     artwork: artworkOf(track),
     sources: [{ source: 'audius', id: track.id, artwork: artworkOf(track), genre: track.genre || '' }],

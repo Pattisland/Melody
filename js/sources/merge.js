@@ -1,5 +1,5 @@
 /* 跨源合并：同歌名+同歌手视为同一首，来源挂成多路 */
-import { normalizeArtist } from '../core/util.js';
+import { normalizeArtist, textOf } from '../core/util.js';
 
 /**
  * @param {Array<{source: any, items: any[]}>} batches
@@ -30,7 +30,7 @@ export function mergeResults(batches) {
 export function groupAlbums(tracks) {
   const map = new Map();
   for (const track of tracks) {
-    const name = String(track.album || '').trim();
+    const name = textOf(track.album).trim();
     if (!name) continue;
     const key = name.toLowerCase();
     let entry = map.get(key);
