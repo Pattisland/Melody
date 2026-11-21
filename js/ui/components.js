@@ -255,6 +255,7 @@ export function openActionMenu(options = {}) {
   let currentSub = null;
   const closeChildren = () => {
     while (childMenus.length) childMenus.pop().element.remove();
+    menu.querySelectorAll('[data-sub-active]').forEach((node) => { delete node.dataset.subActive; });
     currentSub = null;
   };
   const close = () => {
@@ -278,6 +279,7 @@ export function openActionMenu(options = {}) {
     if (closed || currentSub === button) return;
     closeChildren();
     currentSub = button;
+    button.dataset.subActive = '1';
     Promise.resolve(item.submenu())
       .then((list) => {
         if (closed || !list || !list.length) return;
