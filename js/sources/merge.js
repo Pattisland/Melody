@@ -26,6 +26,25 @@ export function mergeResults(batches) {
   return Array.from(map.values());
 }
 
+/** 按专辑聚合（同名专辑合并） */
+export function groupAlbums(tracks) {
+  const map = new Map();
+  for (const track of tracks) {
+    const name = String(track.album || '').trim();
+    if (!name) continue;
+    const key = name.toLowerCase();
+    let entry = map.get(key);
+    if (!entry) {
+      entry = { name, artist: String(track.artist || '').split(' / ')[0], count: 0, track, tracks: [] };
+      map.set(key, entry);
+    }
+    entry.count += 1;
+    entry.tracks.push(track);
+    if (!entry.track.artwork && track.artwork) entry.track = track;
+  }
+  return Array.from(map.values()).sort((a, b) => b.count - a.count);
+}
+
 /** 按歌手聚合，用于搜索结果里的「歌手」分栏 */
 export function groupArtists(tracks, query) {
   const q = String(query || '').toLowerCase().replace(/\s+/g, '');

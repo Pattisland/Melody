@@ -1,89 +1,107 @@
-/* 曲目操作菜单 */
-import { openSheet, toast, songRow } from './components.js';
+/* 曲目操作菜单：移动端底部抽屉，桌面端贴着三点浮出 */
+import { openActionMenu, openSheet, toast } from './components.js';
 import { esc, icon } from '../core/util.js';
-import { isFavorite, toggleFavorite, listPlaylists, addToPlaylist, createPlaylist, getCacheEntry, removeCache } from '../data/repo.js';
+import {
+  isFavorite, toggleFavorite, listPlaylists, addToPlaylist, createPlaylist,
+  getCacheEntry, removeCache, isSubscribed, addSubscription, removeSubscription,
+} from '../data/repo.js';
 import { cacheTrack } from '../player/cache.js';
 import { downloadTrack } from '../download/download.js';
+import { refreshCacheState } from './cache-state.js';
 import { store } from '../core/store.js';
 import { player } from '../player/player.js';
-
-function actionRow(iconName, label, hint, action, disabled) {
-  return '<div class="list-item" data-action="' + esc(action) + '" role="button" tabindex="0"' + (disabled ? ' aria-disabled="true"' : '') + '>' +
-    '<div class="list-item__art list-item__art--icon">' + icon(iconName) + '</div>' +
-    '<div class="list-item__body"><div class="list-item__title">' + esc(label) + '</div>' +
-    (hint ? '<div class="list-item__sub">' + esc(hint) + '</div>' : '') + '</div></div>';
-}
 
 export async function openTrackMenu(track, options = {}) {
   const profileId = store.state.profileId;
   if (!profileId) { toast('还没有档案'); return; }
-  const favorited = await isFavorite(profileId, track.id);
-  const cached = await getCacheEntry(profileId, track.id);
+  const rect = options.anchor && options.anchor.getBoundingClientRect ? options.anchor.getBoundingClientRect() : null;
+  const point = options.point ? { x: options.point.clientX, y: options.point.clientY } : null;
+  const [favorited, cached, subscribed] = await Promise.all([
+    isFavorite(profileId, track.id),
+    getCacheEntry(profileId, track.id),
+    isSubscribed(profileId, String(track.artist || '').split(' / ')[0]),
+  ]);
 
-  const body = '<div class="stack gap-8">' +
-    '<div class="row gap-12" style="padding: 0 8px 8px">' +
-      '<div class="list-item__art" style="width:56px;height:56px;border-radius:var(--shape-md)">' +
-        (track.artwork ? '<img data-cover src="' + esc(track.artwork) + '" alt="">' : icon('music_note')) +
-      '</div>' +
-      '<div class="grow"><div class="t-title-m ellipsis">' + esc(track.title) + '</div>' +
-      '<div class="t-body-m muted ellipsis">' + esc(track.artist || '未知歌手') + '</div></div>' +
-    '</div>' +
-    actionRow('play_arrow', '立即播放', '', 'play') +
-    actionRow(favorited ? 'favorite' : 'favorite_border', favorited ? '取消收藏' : '收藏', '', 'fav') +
-    actionRow('playlist_add', '加入歌单', '', 'playlist') +
-    actionRow('download', cached ? '重新缓存' : '缓存到本地', cached ? '' : '缓存后即可下载', 'cache') +
-    actionRow('save_alt', '下载到设备', cached ? '保留原始音质与标签' : '需要先缓存', 'download', !cached) +
-    (cached ? actionRow('delete', '移除缓存', '', 'uncache') : '') +
-    actionRow('queue_music', '加入播放队列', '', 'queue') +
-  '</div>';
+  const items = [
+    { icon: 'play_arrow', label: '立即播放', onSelect: () => player.playTrack(track) },
+    {
+      icon: favorited ? 'favorite' : 'favorite_border',
+      label: favorited ? '取消收藏' : '收藏',
+      onSelect: async () => {
+        const now = await toggleFavorite(profileId, track);
+        toast(now ? '已加入我的喜欢' : '已取消收藏');
+        if (options.onFavoriteChange) options.onFavoriteChange(track.id, now);
+      },
+    },
+    { icon: 'playlist_add', label: '加入歌单', onSelect: () => openPlaylistPicker(track) },
+    {
+      icon: subscribed ? 'person_remove' : 'person_add',
+      label: subscribed ? '取消订阅这位歌手' : '订阅这位歌手',
+      onSelect: async () => {
+        const artist = String(track.artist || '').split(' / ')[0];
+        if (!artist) { toast('这位曲目没有歌手信息'); return; }
+        if (subscribed) {
+          const subs = (store.state.subscriptions || []);
+          const hit = subs.find((row) => row.artist === artist);
+          await removeSubscription(hit ? hit.id : profileId + ':' + artist.toLowerCase());
+          toast('已取消订阅「' + artist + '」');
+        } else {
+          await addSubscription(profileId, artist);
+          toast('已订阅「' + artist + '」，首页会更新');
+        }
+      },
+    },
+    {
+      icon: cached ? 'download_done' : 'download',
+      label: cached ? '重新缓存' : '缓存到本地',
+      onSelect: async () => {
+        toast('开始缓存…');
+        try {
+          await cacheTrack(profileId, track, {
+            settings: store.state.settings,
+            onProgress: (got, total) => {
+              if (total && store.state.settings['prefs.notifyCache'] !== false) {
+                toast('缓存 ' + Math.round((got / total) * 100) + '%', { timeout: 1200 });
+              }
+            },
+          });
+          await refreshCacheState(profileId);
+          toast('缓存完成');
+          if (options.onCacheChange) options.onCacheChange();
+        } catch (err) { toast('缓存失败：' + err.message); }
+      },
+    },
+    {
+      icon: 'save_alt',
+      label: cached ? '下载到设备' : '下载到设备（需先缓存）',
+      disabled: !cached,
+      onSelect: async () => {
+        try { await downloadTrack(profileId, track); } catch (err) { toast('下载失败：' + err.message); }
+      },
+    },
+    cached ? {
+      icon: 'delete',
+      label: '移除缓存',
+      onSelect: async () => {
+        await removeCache(profileId, track.id);
+        await refreshCacheState(profileId);
+        toast('已移除缓存');
+        if (options.onCacheChange) options.onCacheChange();
+      },
+    } : null,
+    {
+      icon: 'queue_music',
+      label: '加入播放队列',
+      onSelect: () => {
+        const queue = store.state.player.queue.slice();
+        if (!queue.some((item) => item.id === track.id)) queue.push(track);
+        store.patch('player', { queue });
+        toast('已加入播放队列');
+      },
+    },
+  ].filter(Boolean);
 
-  const sheet = openSheet({ title: '曲目', body });
-  const map = { play: 'play', fav: 'fav', playlist: 'playlist', cache: 'cache', download: 'download', uncache: 'uncache', queue: 'queue' };
-
-  sheet.body.addEventListener('click', async (event) => {
-    const row = event.target.closest('[data-action]');
-    if (!row) return;
-    const action = row.dataset.action;
-    if (row.getAttribute('aria-disabled') === 'true') { toast('先缓存，再下载'); return; }
-    if (action === 'play') { sheet.close(); player.playTrack(track); return; }
-    if (action === 'fav') {
-      const now = await toggleFavorite(profileId, track);
-      toast(now ? '已加入我的喜欢' : '已取消收藏');
-      if (options.onFavoriteChange) options.onFavoriteChange(track.id, now);
-      sheet.close();
-      return;
-    }
-    if (action === 'playlist') { sheet.close(); openPlaylistPicker(track); return; }
-    if (action === 'cache') {
-      sheet.close();
-      const size = cacheTrack(profileId, track, { settings: store.state.settings, onProgress: (got, total) => {
-        if (total) toast('缓存 ' + Math.round((got / total) * 100) + '%', { timeout: 1200 });
-      }});
-      toast('开始缓存…');
-      try { await size; toast('缓存完成'); } catch (err) { toast('缓存失败：' + err.message); }
-      if (options.onCacheChange) options.onCacheChange();
-      return;
-    }
-    if (action === 'download') {
-      sheet.close();
-      try { await downloadTrack(profileId, track); } catch (err) { toast('下载失败：' + err.message); }
-      return;
-    }
-    if (action === 'uncache') {
-      await removeCache(profileId, track.id);
-      toast('已移除缓存');
-      if (options.onCacheChange) options.onCacheChange();
-      sheet.close();
-      return;
-    }
-    if (action === 'queue') {
-      const queue = store.state.player.queue.slice();
-      if (!queue.some((item) => item.id === track.id)) queue.push(track);
-      store.patch('player', { queue });
-      toast('已加入播放队列');
-      sheet.close();
-    }
-  });
+  return openActionMenu({ title: track.title, anchor: options.anchor, rect, point, items });
 }
 
 export async function openPlaylistPicker(track) {

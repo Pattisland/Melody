@@ -5,10 +5,13 @@ import { applyTheme, sourceColorFromUrl } from './core/theme.js';
 import { openDb } from './data/db.js';
 import { loadSettings, ensureActiveProfile, getTrackColor, saveTrackColor } from './data/repo.js';
 import { mountShell } from './ui/shell.js';
-import { installCoverFallback, toast } from './ui/components.js';
+import { toast } from './ui/components.js';
+import { installCoverEngine } from './ui/cover.js';
+import { refreshCacheState } from './ui/cache-state.js';
 import { player } from './player/player.js';
 import { artworkCandidates } from './sources/registry.js';
 import { requestPersistentStorage } from './core/util.js';
+import { homeRoute } from './ui/pages/home.js';
 import searchPage from './ui/pages/search.js';
 import { libraryRoutes } from './ui/pages/library.js';
 import { meRoutes } from './ui/pages/me.js';
@@ -62,7 +65,7 @@ function applyPrefs(settings) {
 }
 
 async function boot() {
-  installCoverFallback();
+  installCoverEngine();
 
   try { await openDb(); }
   catch (err) { toast('数据库不可用：' + err.message); }
@@ -92,6 +95,7 @@ async function boot() {
   mountShell();
   player.init({ settings, profileId: active.profile.id });
 
+  router.add(homeRoute);
   router.add(searchPage);
   for (const route of libraryRoutes) router.add(route);
   for (const route of meRoutes) router.add(route);
@@ -107,6 +111,9 @@ async function boot() {
   });
   on(['theme'], () => { if (!internal) syncCoverTheme(); });
   on(['settings'], () => { applyPrefs(store.state.settings); });
+
+  refreshCacheState(active.profile.id).catch(() => {});
+  on(['profileId'], () => { refreshCacheState(store.state.profileId).catch(() => {}); });
 
   requestPersistentStorage().catch(() => {});
 

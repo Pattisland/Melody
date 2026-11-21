@@ -1,5 +1,5 @@
 /* 聚合源适配器：GDStudio（JSON 取流）与 Meting 实例（302 直取） */
-import { joinArtists, trackKey } from '../core/util.js';
+import { joinArtists, trackKey, textOf } from '../core/util.js';
 
 const GD_BASE = 'https://music-api.gdstudio.xyz/api.php';
 const METING_BASE = 'https://api.qijieya.cn/meting/';
@@ -13,6 +13,17 @@ export const SERVER_LABEL = {
   migu: '咪咕',
   joox: 'JOOX',
 };
+
+/** 有些源把歌手名拼进标题（"周杰伦 - 晴天"），有重复时剥掉 */
+function cleanTitle(name, artist) {
+  const title = textOf(name);
+  const first = Array.isArray(artist) ? artist[0] : String(artist || '').split('/')[0];
+  const prefix = textOf(first).trim();
+  if (!prefix) return title;
+  const escaped = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const stripped = title.replace(new RegExp('^' + escaped + '\\s*[-–—]\\s*'), '').trim();
+  return stripped || title;
+}
 
 async function fetchJson(url, signal) {
   const res = await fetch(url, { signal, mode: 'cors', credentials: 'omit', referrerPolicy: 'no-referrer' });
@@ -62,9 +73,9 @@ export function createGdStudio(config) {
       if (!Array.isArray(list)) throw new Error((list && list.detail) || '搜索失败');
       const items = list.map((row) => ({
         id: trackKey(row.name, row.artist),
-        title: String(row.name || ''),
+        title: cleanTitle(row.name, row.artist),
         artist: joinArtists(row.artist),
-        album: String(row.album || ''),
+        album: textOf(row.album),
         duration: 0,
         artwork: metingCover(server, row.pic_id),
         sources: [{
@@ -129,9 +140,9 @@ export function createMeting(config) {
         const id = idFromUrl(row.url);
         return {
           id: trackKey(row.name, row.artist),
-          title: String(row.name || ''),
-          artist: String(row.artist || ''),
-          album: String(row.album || ''),
+          title: cleanTitle(row.name, row.artist),
+          artist: textOf(row.artist),
+          album: textOf(row.album),
           duration: 0,
           artwork: row.pic || '',
           sources: [{ source: key, id, picUrl: row.pic || '', lrcUrl: row.lrc || '', artwork: row.pic || '' }],

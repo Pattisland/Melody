@@ -89,6 +89,15 @@ export function trackKey(title, artist) {
   return hash32(normalizeTitle(title) + '|' + normalizeArtist(artist));
 }
 
+/** 把可能是对象/数组的字段安全转成字符串（有些聚合接口把 album 返回成对象） */
+export function textOf(value) {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return String(value);
+  if (Array.isArray(value)) return value.map((item) => textOf(item)).filter(Boolean).join(' / ');
+  if (value && typeof value === 'object') return textOf(value.name || value.title || value.text || '');
+  return '';
+}
+
 export function joinArtists(artist) {
   if (Array.isArray(artist)) return artist.filter(Boolean).join(' / ');
   return String(artist || '');

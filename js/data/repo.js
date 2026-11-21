@@ -1,6 +1,6 @@
 /* 领域操作层：档案 / 收藏 / 历史 / 搜索词 / 缓存 / 歌单 / 设置 */
 import * as idb from './db.js';
-import { trackKey, uid, joinArtists } from '../core/util.js';
+import { trackKey, uid, joinArtists, textOf } from '../core/util.js';
 
 export const DEFAULT_SETTINGS = {
   'theme.seed': '#0f6b72',
@@ -103,7 +103,7 @@ export function toRecord(track) {
     id: track.id || trackKey(title, artist),
     title,
     artist,
-    album: String(track.album || ''),
+    album: textOf(track.album),
     duration: Number(track.duration) || 0,
     artwork: String(track.artwork || ''),
     sources: Array.isArray(track.sources) ? track.sources : [],
@@ -255,6 +255,150 @@ export async function removeCache(profileId, trackId) {
 export async function cacheStats(profileId) {
   const rows = await idb.byIndex('cached', 'profileId', profileId);
   return { count: rows.length, bytes: rows.reduce((sum, row) => sum + (row.bytes || 0), 0) };
+}
+
+/* ------------------------------ 收听记录与统计 ------------------------------ */
+
+const DAY = 86400000;
+
+/** 每次开始播放记一条，用于统计与排行（不是历史列表） */
+export async function recordListen(profileId, track) {
+  if (!profileId || !track) return;
+  const record = toRecord(track);
+  await idb.put('tracks', record);
+  await idb.put('plays', {
+    profileId, trackId: record.id, track: record,
+    at: Date.now(), ms: (record.duration || 0) * 1000,
+  });
+}
+
+export async function listPlays(profileId, sinceMs) {
+  const rows = await idb.byIndex('plays', 'profileId', profileId);
+  const since = sinceMs || 0;
+  return rows.filter((row) => (row.at || 0) >= since);
+}
+
+/** 总时长 + 最近 7 天逐日时长 + 曲目/歌手数 */
+export async function listeningStats(profileId) {
+  const rows = await idb.byIndex('plays', 'profileId', profileId);
+  const now = Date.now();
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const days = [];
+  for (let i = 6; i >= 0; i -= 1) {
+    const dayStart = startOfToday.getTime() - i * DAY;
+    const dayEnd = dayStart + DAY;
+    const ms = rows.filter((row) => row.at >= dayStart && row.at < dayEnd).reduce((sum, row) => sum + (row.ms || 0), 0);
+    days.push({ at: dayStart, ms });
+  }
+  const tracks = new Set(rows.map((row) => row.trackId));
+  const artists = new Set(rows.map((row) => (row.track && row.track.artist) || '').filter(Boolean));
+  return {
+    totalMs: rows.reduce((sum, row) => sum + (row.ms || 0), 0),
+    plays: rows.length,
+    tracks: tracks.size,
+    artists: artists.size,
+    days,
+    weekMs: days.reduce((sum, day) => sum + day.ms, 0),
+  };
+}
+
+/** 排行榜：按播放次数聚合 */
+export async function topTracks(profileId, range, limit = 5) {
+  const since = range === 'week' ? Date.now() - 7 * DAY : range === 'month' ? Date.now() - 30 * DAY : 0;
+  const rows = await listPlays(profileId, since);
+  const map = new Map();
+  for (const row of rows) {
+    const entry = map.get(row.trackId) || { track: row.track, count: 0, ms: 0, lastAt: 0 };
+    entry.count += 1;
+    entry.ms += row.ms || 0;
+    entry.lastAt = Math.max(entry.lastAt, row.at || 0);
+    if (row.track) entry.track = row.track;
+    map.set(row.trackId, entry);
+  }
+  return Array.from(map.values()).sort((a, b) => b.count - a.count || b.lastAt - a.lastAt).slice(0, limit);
+}
+
+/* ------------------------------ 曲库与推荐 ------------------------------ */
+
+/** 曲库 = 收藏 + 自定义歌单 + 缓存（按 id 去重） */
+export async function libraryTracks(profileId) {
+  const [favorites, cached, playlists] = await Promise.all([
+    idb.byIndex('favorites', 'profileId', profileId),
+    idb.byIndex('cached', 'profileId', profileId),
+    idb.byIndex('playlists', 'profileId', profileId),
+  ]);
+  const items = await Promise.all(playlists.map((list) => idb.byIndex('playlistItems', 'playlistId', list.id)));
+  const map = new Map();
+  const add = (track) => { if (track && track.id && !map.has(track.id)) map.set(track.id, track); };
+  favorites.forEach((row) => add(row.track));
+  cached.forEach((row) => add(row.track));
+  items.flat().forEach((row) => add(row.track));
+  return Array.from(map.values());
+}
+
+/** 推荐：曲库里最近没听过的，最多 10 首 */
+export async function recommendations(profileId, limit = 10) {
+  const [library, recent] = await Promise.all([
+    libraryTracks(profileId),
+    listPlays(profileId, Date.now() - 14 * DAY),
+  ]);
+  const heard = new Set(recent.map((row) => row.trackId));
+  const pool = library.filter((track) => !heard.has(track.id));
+  const rest = library.filter((track) => heard.has(track.id));
+  const shuffle = (list) => {
+    const copy = list.slice();
+    for (let i = copy.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const tmp = copy[i]; copy[i] = copy[j]; copy[j] = tmp;
+    }
+    return copy;
+  };
+  return shuffle(pool).concat(shuffle(rest)).slice(0, limit);
+}
+
+/* ------------------------------ 订阅 ------------------------------ */
+
+export async function listSubscriptions(profileId) {
+  const rows = await idb.byIndex('subscriptions', 'profileId', profileId);
+  return rows.sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0));
+}
+
+export async function addSubscription(profileId, artist) {
+  const name = String(artist || '').trim();
+  if (!profileId || !name) return null;
+  const id = profileId + ':' + name.toLowerCase();
+  const existing = await idb.get('subscriptions', id);
+  if (existing) return existing;
+  const row = { id, profileId, artist: name, addedAt: Date.now() };
+  await idb.put('subscriptions', row);
+  return row;
+}
+
+export async function removeSubscription(id) { await idb.remove('subscriptions', id); }
+
+export async function isSubscribed(profileId, artist) {
+  if (!profileId || !artist) return false;
+  return Boolean(await idb.get('subscriptions', profileId + ':' + String(artist).toLowerCase()));
+}
+
+/* ------------------------------ 封面缩略图缓存 ------------------------------ */
+
+export async function getThumb(key) {
+  const row = await idb.get('thumbs', key);
+  return row ? row.blob : null;
+}
+
+export async function putThumb(key, blob) {
+  if (!key || !blob) return;
+  await idb.put('thumbs', { id: key, blob, at: Date.now() });
+}
+
+export async function trimThumbs(max) {
+  const rows = await idb.all('thumbs');
+  if (rows.length <= max) return;
+  const doomed = rows.sort((a, b) => a.at - b.at).slice(0, rows.length - max);
+  await idb.removeMany('thumbs', doomed.map((row) => row.id));
 }
 
 /* ------------------------------ 歌单 ------------------------------ */

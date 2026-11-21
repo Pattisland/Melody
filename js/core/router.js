@@ -1,11 +1,14 @@
-/* hash 路由：解析 -> 渲染 -> 顶栏/导航/层级 */
+/* hash 路由：解析 -> 渲染 -> 顶栏/导航/层级；带页面缓存 */
 import { esc, icon } from './util.js';
 
 const routes = [];
+const cache = new Map();
+const CACHE_LIMIT = 8;
 let currentRoute = null;
 let currentCtx = null;
-let topbarActions = '';
 let afterRender = null;
+
+function cacheKeyOf(hash) { return String(hash || '').replace(/^#/, '') || '/home'; }
 
 export const router = {
   add(route) { routes.push(route); return router; },
@@ -13,7 +16,7 @@ export const router = {
   get current() { return { route: currentRoute, ctx: currentCtx }; },
 
   parse(hash) {
-    const raw = String(hash || '').replace(/^#/, '') || '/search';
+    const raw = String(hash || '').replace(/^#/, '') || '/home';
     const parts = raw.split('?');
     const pathPart = parts[0];
     const path = pathPart.startsWith('/') ? pathPart : '/' + pathPart;
@@ -50,30 +53,28 @@ export const router = {
   },
 
   setActions(html) {
-    topbarActions = html || '';
     const holder = document.querySelector('[data-topbar-actions]');
-    if (holder) holder.innerHTML = topbarActions;
+    if (holder) holder.innerHTML = html || '';
   },
 
   render() {
-    const parsed = router.parse(location.hash || '#/search');
+    const parsed = router.parse(location.hash || '#/home');
     const found = router.match(parsed.path);
-    if (!found) { router.go('/search', { replace: true }); return; }
+    if (!found) { router.go('/home', { replace: true }); return; }
 
     const page = document.getElementById('page');
     const topbar = document.getElementById('topbar');
     const route = found.route;
-    const ctx = { path: parsed.path, query: parsed.query, params: found.params, raw: parsed.raw };
+    const ctx = { path: parsed.path, query: parsed.query, params: found.params, raw: parsed.raw, hash: location.hash };
     currentRoute = route;
     currentCtx = ctx;
-    topbarActions = '';
 
     const level = typeof route.level === 'function' ? route.level(ctx) : (route.level || 1);
     const title = typeof route.title === 'function' ? route.title(ctx) : (route.title || '');
 
     document.body.dataset.level = String(level);
     document.body.dataset.detail = String(level > 1);
-    const dest = parsed.path.split('/')[1] || 'search';
+    const dest = route.dest || parsed.path.split('/')[1] || 'home';
     document.body.dataset.dest = dest;
     document.querySelectorAll('.nav__item').forEach((item) => {
       if (item.dataset.dest === dest) item.setAttribute('aria-current', 'page');
@@ -92,23 +93,52 @@ export const router = {
 
     document.title = title ? title + ' · Melody' : 'Melody';
 
-    page.innerHTML = '';
-    page.classList.remove('page--in');
-    void page.offsetWidth;
-    page.classList.add('page--in');
+    const key = cacheKeyOf(location.hash);
+    const wantCache = typeof route.cache === 'function' ? route.cache(ctx) : Boolean(route.cache);
+    const saved = wantCache ? cache.get(key) : null;
+    if (saved) {
+      page.replaceChildren(saved.node);
+      page.dataset.view = key;
+      if (route.onShow) route.onShow(saved.node, ctx, saved);
+      if (afterRender) afterRender(ctx);
+      window.scrollTo(0, saved.scroll || 0);
+      return;
+    }
+
+    const node = document.createElement('div');
+    node.className = 'page-view page--in';
+    page.replaceChildren(node);
+    page.dataset.view = key;
 
     try {
-      const result = route.mount(page, ctx);
+      const result = route.mount(node, ctx);
       if (result && typeof result.then === 'function') {
-        result.then(() => { if (afterRender) afterRender(ctx); }).catch((err) => router.fail(page, err));
-      } else if (afterRender) {
-        afterRender(ctx);
+        result.then(() => {
+          if (wantCache) router.remember(key, node);
+          if (afterRender) afterRender(ctx);
+        }).catch((err) => router.fail(node, err));
+      } else {
+        if (wantCache) router.remember(key, node);
+        if (afterRender) afterRender(ctx);
       }
     } catch (err) {
-      router.fail(page, err);
+      router.fail(node, err);
     }
 
     window.scrollTo(0, 0);
+  },
+
+  remember(key, node) {
+    cache.set(key, { node, scroll: 0 });
+    while (cache.size > CACHE_LIMIT) {
+      const oldest = cache.keys().next().value;
+      cache.delete(oldest);
+    }
+  },
+
+  saveScroll() {
+    const hit = cache.get(cacheKeyOf(location.hash));
+    if (hit) hit.scroll = window.scrollY;
   },
 
   fail(page, err) {
@@ -119,11 +149,12 @@ export const router = {
 
   back() {
     if (history.length > 1) history.back();
-    else router.go('/search', { replace: true });
+    else router.go('/home', { replace: true });
   },
 
   start() {
     window.addEventListener('hashchange', () => router.render());
+    window.addEventListener('scroll', () => router.saveScroll(), { passive: true });
     router.render();
   },
 };

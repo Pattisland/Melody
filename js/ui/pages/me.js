@@ -5,7 +5,7 @@ import { store } from '../../core/store.js';
 import { applyTheme, SEED_PRESETS, VARIANTS, isValidSeed, normalizeSeed } from '../../core/theme.js';
 import {
   getProfile, updateProfile, listProfiles, createProfile, deleteProfile,
-  saveSettings, saveSetting, ensureActiveProfile,
+  saveSettings, saveSetting, ensureActiveProfile, cacheStats,
 } from '../../data/repo.js';
 import { SOURCES, DEFAULT_ORDER } from '../../sources/registry.js';
 import { openDialog, toast, emptyState } from '../components.js';
@@ -28,8 +28,9 @@ function navRow(iconName, title, hint, route, trailing) {
 async function renderMe(root) {
   const profile = await getProfile(store.state.profileId);
   const profiles = await listProfiles();
+  const cached = await cacheStats(store.state.profileId);
   root.innerHTML =
-    '<div class="section" style="margin-top:8px">' +
+    '<div class="section" style="margin-top:10px">' +
       '<div class="card card--elev" data-open-profile role="button" tabindex="0">' +
         '<div class="row gap-16">' + avatarHtml(profile, true) +
           '<div class="grow"><div class="t-title-l">' + esc((profile && profile.name) || '我的档案') + '</div>' +
@@ -38,13 +39,14 @@ async function renderMe(root) {
         '</div>' +
       '</div>' +
     '</div>' +
-    '<div class="section"><div class="group">' +
+    '<div class="section" style="margin-top:14px"><div class="group">' +
       navRow('palette', '主题配色', '莫奈取色 · 深浅色', '/me/theme') +
       navRow('tune', '偏好设置', '播放与界面细节', '/me/prefs') +
       navRow('link', '来源设置', '启用与回退顺序', '/me/sources') +
       navRow('sync', '任务进度', '缓存与解析队列', '/me/tasks') +
     '</div>' +
     '<div class="group">' +
+      navRow('download_done', '缓存管理', cached.count + ' 首 · 存在本地', '/me/cache') +
       navRow('storage', '数据管理', '导入导出与清理', '/me/data') +
       navRow('info', '关于 Melody', '版本与技术说明', '/me/about') +
     '</div></div>';

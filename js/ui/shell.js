@@ -1,9 +1,9 @@
-/* 应用外壳：迷你播放器 + 播放器抽屉 + 顶栏滚动 */
+/* 应用外壳：迷你播放器 + 全屏播放器 */
 import { esc, icon, fmtTime, clamp } from '../core/util.js';
 import { store } from '../core/store.js';
 import { player } from '../player/player.js';
-import { artworkFor } from '../sources/registry.js';
 import { activeLineIndex } from '../player/lyrics.js';
+import { coverSources } from './cover.js';
 import { openTrackMenu } from './track-menu.js';
 
 let els = {};
@@ -18,22 +18,34 @@ function blurEnabled() {
   return settings['prefs.blurBg'] !== false;
 }
 
+function artFor(track, size) {
+  return coverSources(track, size)[0] || '';
+}
+
 function renderDock() {
   const state = store.state.player;
   const dock = els.dock;
   if (!state.track) { dock.hidden = true; dock.innerHTML = ''; return; }
   dock.hidden = false;
   const track = state.track;
-  const art = artworkFor(track);
+  const art = artFor(track, 120);
   dock.innerHTML =
     '<div class="dock__inner" data-dock-open role="button" tabindex="0" aria-label="展开播放器">' +
       '<div class="dock__progress"><span style="width:' + (state.duration ? (state.current / state.duration) * 100 : 0) + '%"></span></div>' +
-      '<div class="dock__art">' + icon('music_note') + (art ? '<img data-cover src="' + esc(art) + '" alt="">' : '') + '</div>' +
+      '<div class="dock__art">' + icon('music_note') +
+        (art ? '<img data-cover data-src="' + esc(art) + '" decoding="async" referrerpolicy="no-referrer" alt="">' : '') + '</div>' +
       '<div class="dock__body"><div class="dock__title">' + esc(track.title) + '</div>' +
       '<div class="dock__artist">' + esc(track.artist || '未知歌手') + '</div></div>' +
       '<button class="icon-btn" data-dock-toggle aria-label="' + (state.playing ? '暂停' : '播放') + '">' + icon(state.playing ? 'pause' : 'play_arrow') + '</button>' +
       '<button class="icon-btn" data-dock-next aria-label="下一首">' + icon('skip_next') + '</button>' +
     '</div>';
+}
+
+function lyricHTML(lines, active) {
+  if (!lines.length) return '';
+  const from = Math.max(0, active - 2);
+  return lines.slice(from, active + 3).map((line, index) =>
+    '<div class="line' + (from + index === active ? ' is-active' : '') + '">' + esc(line.text || '·') + '</div>').join('');
 }
 
 function renderPlayer() {
@@ -42,46 +54,40 @@ function renderPlayer() {
   const state = store.state.player;
   if (!state.track) { node.setAttribute('aria-hidden', 'true'); return; }
   const track = state.track;
-  const art = artworkFor(track, 640);
-  const isOpen = state.mode !== 'mini';
+  const thumb = artFor(track, 200);
+  const full = artFor(track, 640);
+  const isOpen = state.mode === 'full';
   node.classList.toggle('is-open', isOpen);
-  node.classList.toggle('player--half', state.mode === 'half');
   node.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
   document.body.dataset.player = isOpen ? 'open' : 'closed';
   if (!isOpen) return;
 
-  const lines = player.lyrics;
-  const active = activeLineIndex(lines.lines, state.current);
-  const from = Math.max(0, active - 2);
-  const lyricsHtml = lines.loading
+  const lyrics = player.lyrics;
+  const active = activeLineIndex(lyrics.lines, state.current);
+  const lyricsBody = lyrics.loading
     ? '<div class="t-body-m muted">歌词加载中…</div>'
-    : lines.lines.length
-      ? lines.lines.slice(from, active + 3).map((line, index) =>
-          '<div class="line' + (from + index === active ? ' is-active' : '') + '">' + esc(line.text || '·') + '</div>').join('')
-      : '<div class="t-body-m muted">' + esc(lines.error || '暂无歌词') + '</div>';
-
-  const showTabs = state.mode === 'full';
+    : lyrics.lines.length
+      ? lyricHTML(lyrics.lines, active)
+      : '<div class="t-body-m muted">' + esc(lyrics.error || '暂无歌词') + '</div>';
 
   node.innerHTML =
-    (blurEnabled() && art ? '<div class="player__bg"><img src="' + esc(art) + '" alt="" data-cover></div>' : '<div class="player__bg player__bg--plain"></div>') +
+    (blurEnabled() && thumb ? '<div class="player__bg"><img data-cover data-src="' + esc(thumb) + '" alt=""></div>' : '<div class="player__bg player__bg--plain"></div>') +
     '<div class="player__inner">' +
       '<div class="player__top">' +
         '<button class="icon-btn" data-collapse aria-label="收起">' + icon('keyboard_arrow_down') + '</button>' +
         '<div class="player__top-title">正在播放</div>' +
         '<button class="icon-btn" data-more aria-label="更多">' + icon('more_vert') + '</button>' +
-        '<button class="icon-btn" data-expand aria-label="' + (showTabs ? '半屏' : '全屏') + '">' +
-          icon(showTabs ? 'fullscreen_exit' : 'fullscreen') + '</button>' +
       '</div>' +
-      (showTabs
-        ? '<div class="tabbar tabbar--center" role="tablist" aria-label="播放器视图">' +
-            '<button class="tabbar__tab" role="tab" data-view="cover" aria-selected="' + (viewMode === 'cover') + '">封面</button>' +
-            '<button class="tabbar__tab" role="tab" data-view="lyrics" aria-selected="' + (viewMode === 'lyrics') + '">歌词</button>' +
-          '</div>'
-        : '') +
+      '<div class="tabbar tabbar--center" role="tablist" aria-label="播放器视图">' +
+        '<button class="tabbar__tab" role="tab" data-view="cover" aria-selected="' + (viewMode === 'cover') + '">封面</button>' +
+        '<button class="tabbar__tab" role="tab" data-view="lyrics" aria-selected="' + (viewMode === 'lyrics') + '">歌词</button>' +
+      '</div>' +
       '<div class="player__stage" data-stage>' +
-        (showTabs && viewMode === 'lyrics'
-          ? '<div class="player__lyrics">' + lyricsHtml + '</div>'
-          : '<div class="player__cover">' + icon('music_note', 'icon--72') + (art ? '<img src="' + esc(art) + '" alt="" data-cover>' : '') + '</div>') +
+        (viewMode === 'lyrics'
+          ? '<div class="player__lyrics" data-lyrics data-active="' + active + '">' + lyricsBody + '</div>'
+          : '<div class="player__cover" data-cover-full="' + esc(full) + '">' + icon('music_note', 'icon--72') +
+            (thumb ? '<img data-cover data-src="' + esc(thumb) + '" data-full="' + esc(full) + '" decoding="async" referrerpolicy="no-referrer" alt="">' : '') +
+            '</div>') +
       '</div>' +
       '<div class="player__meta"><div class="player__title">' + esc(track.title) + '</div>' +
         '<div class="player__artist">' + esc(track.artist || '未知歌手') + '</div></div>' +
@@ -108,13 +114,14 @@ function renderPlayer() {
   });
   seek.addEventListener('change', () => player.seekTo(Number(seek.value)));
   node.querySelector('[data-collapse]').addEventListener('click', () => setMode('mini'));
-  node.querySelector('[data-expand]').addEventListener('click', () => setMode(state.mode === 'full' ? 'half' : 'full'));
   node.querySelector('[data-toggle]').addEventListener('click', () => player.toggle());
   node.querySelector('[data-next]').addEventListener('click', () => player.next());
   node.querySelector('[data-prev]').addEventListener('click', () => player.prev());
   node.querySelector('[data-shuffle]').addEventListener('click', () => { player.toggleShuffle(); renderPlayer(); });
   node.querySelector('[data-repeat]').addEventListener('click', () => { player.cycleRepeat(); renderPlayer(); });
-  node.querySelector('[data-more]').addEventListener('click', () => openTrackMenu(track));
+  node.querySelector('[data-more]').addEventListener('click', (event) => {
+    openTrackMenu(track, { anchor: event.currentTarget });
+  });
   node.querySelectorAll('[data-view]').forEach((button) => {
     button.addEventListener('click', () => { viewMode = button.dataset.view; renderPlayer(); });
   });
@@ -133,7 +140,7 @@ function updateProgress() {
   if (!state.track) return;
   const bar = els.dock.querySelector('.dock__progress span');
   if (bar) bar.style.width = (state.duration ? clamp((state.current / state.duration) * 100, 0, 100) : 0) + '%';
-  if (state.mode === 'mini') return;
+  if (state.mode !== 'full') return;
   const seek = els.player.querySelector('[data-seek]');
   const current = els.player.querySelector('[data-time-current]');
   const total = els.player.querySelector('[data-time-total]');
@@ -144,14 +151,14 @@ function updateProgress() {
   if (current) current.textContent = fmtTime(state.current);
   if (total) total.textContent = fmtTime(state.duration);
   if (seek && seek.max !== String(state.duration || 0)) seek.max = String(state.duration || 0);
-  if (viewMode === 'lyrics' && state.mode === 'full') {
-    const holder = els.player.querySelector('.player__lyrics');
-    if (holder) {
-      const active = activeLineIndex(player.lyrics.lines, state.current);
-      const from = Math.max(0, active - 2);
-      holder.querySelectorAll('.line').forEach((node, index) => {
-        node.classList.toggle('is-active', from + index === active);
-      });
+
+  const holder = els.player.querySelector('[data-lyrics]');
+  if (holder) {
+    const active = activeLineIndex(player.lyrics.lines, state.current);
+    if (holder.dataset.active !== String(active)) {
+      holder.dataset.active = String(active);
+      holder.innerHTML = lyricHTML(player.lyrics.lines, active) ||
+        '<div class="t-body-m muted">' + esc(player.lyrics.error || '暂无歌词') + '</div>';
     }
   }
 }
@@ -186,15 +193,18 @@ export function mountShell() {
   });
 
   store.subscribe((state, changed) => {
-    if (!changed.includes('settings')) return;
-    if (state.player.mode !== 'mini') renderPlayer();
+    if (changed.includes('settings') && state.player.mode === 'full') renderPlayer();
   });
 
   els.dock.addEventListener('click', (event) => {
     if (!store.state.player.track) return;
     if (event.target.closest('[data-dock-toggle]')) { player.toggle(); return; }
     if (event.target.closest('[data-dock-next]')) { player.next(); return; }
-    if (event.target.closest('[data-dock-open]')) setMode(store.state.player.mode === 'mini' ? 'half' : 'mini');
+    if (event.target.closest('[data-dock-open]')) setMode('full');
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && store.state.player.mode === 'full') setMode('mini');
   });
 
   const topbar = document.getElementById('topbar');

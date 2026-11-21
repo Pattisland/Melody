@@ -10,18 +10,16 @@ import { player } from '../../player/player.js';
 const SYSTEM = [
   { key: 'recent', label: '最近播放', icon: 'history', hint: '听过的歌按时间倒序' },
   { key: 'favorites', label: '我的喜欢', icon: 'favorite', hint: '点星标收藏的曲目' },
-  { key: 'cache', label: '我的缓存', icon: 'download_done', hint: '存在本地，可离线播放与下载' },
 ];
 
 async function renderLibrary(root) {
   const profileId = store.state.profileId;
-  const [history, favorites, cached, playlists] = await Promise.all([
+  const [history, favorites, playlists] = await Promise.all([
     listHistory(profileId, 6),
     listFavorites(profileId),
-    listCached(profileId),
     listPlaylists(profileId),
   ]);
-  const stats = { recent: history.length, favorites: favorites.length, cache: cached.length };
+  const stats = { recent: history.length, favorites: favorites.length };
 
   root.innerHTML =
     '<div class="hero" style="padding-bottom:0"><h1 class="t-headline-l" style="font-weight:650">曲库</h1>' +
@@ -29,7 +27,7 @@ async function renderLibrary(root) {
     '<div class="section">' +
       '<div class="tile-grid">' + SYSTEM.map((item) =>
         '<button class="tile" data-sys="' + item.key + '">' +
-          '<div class="tile__art" style="background:linear-gradient(150deg,var(--md-sys-color-primary-container),var(--md-sys-color-tertiary-container))">' + icon(item.icon, 'icon--40') + '</div>' +
+          '<div class="tile__art">' + icon(item.icon, 'icon--40') + '</div>' +
           '<div class="tile__title">' + esc(item.label) + '</div>' +
           '<div class="tile__sub">' + (stats[item.key] || 0) + ' 首</div>' +
         '</button>').join('') +
@@ -117,13 +115,23 @@ export const libraryRoutes = [
   {
     path: '/library/:kind',
     level: 2,
-    title: (ctx) => ({ recent: '最近播放', favorites: '我的喜欢', cache: '我的缓存' }[ctx.params.kind] || '曲库'),
+    title: (ctx) => ({ recent: '最近播放', favorites: '我的喜欢' }[ctx.params.kind] || '曲库'),
+    cache: true,
     mount: (root, ctx) => renderDetail(root, ctx.params.kind, ''),
   },
   {
     path: '/library/p/:id',
     level: 2,
     title: '歌单',
+    cache: true,
     mount: (root, ctx) => renderDetail(root, 'playlist', ctx.params.id),
+  },
+  {
+    path: '/me/cache',
+    level: 2,
+    title: '缓存管理',
+    dest: 'me',
+    cache: true,
+    mount: (root) => renderDetail(root, 'cache', ''),
   },
 ];

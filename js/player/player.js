@@ -1,7 +1,7 @@
 /* 播放引擎：单 audio 元素 + 队列 + 来源回退 */
 import { store } from '../core/store.js';
 import { resolveTrack, lyricsFor, artworkFor } from '../sources/registry.js';
-import { recordPlay } from '../data/repo.js';
+import { recordPlay, recordListen } from '../data/repo.js';
 import { parseLrc } from './lyrics.js';
 import { cacheGet } from './cache.js';
 
@@ -96,6 +96,7 @@ class Player {
       store.patch('player', { queue: this.queue.slice(), index: 0 });
     }
     store.patch('player', { track, loading: true, error: null, current: 0, duration: track.duration || 0 });
+    if (this.profileId) recordListen(this.profileId, track).catch(() => {});
     this.updateMediaSession(track);
     this.lyrics = { trackId: track.id, lines: [], loading: true, error: '' };
 

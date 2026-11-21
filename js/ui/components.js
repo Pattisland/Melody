@@ -1,6 +1,7 @@
-/* 通用 UI：提示条 / 对话框 / 抽屉 / 歌曲列表 */
-import { esc, icon, fmtTime, animate } from '../core/util.js';
-import { artworkFor, artworkCandidates } from '../sources/registry.js';
+/* 通用 UI：提示条 / 对话框 / 抽屉 / 悬浮菜单 / 歌曲列表 */
+import { esc, icon, fmtTime, animate, textOf } from '../core/util.js';
+import { store } from '../core/store.js';
+import { coverMarkup } from './cover.js';
 
 /* ------------------------------ 提示条 ------------------------------ */
 
@@ -130,6 +131,82 @@ export function openSheet(options = {}) {
   return { element: sheet, close, body: sheet.querySelector('.sheet__body') };
 }
 
+/* ------------------------------ 动作菜单 ------------------------------ */
+
+function menuItemHTML(item, index) {
+  return '<button class="menu__item" role="menuitem" data-index="' + index + '"' +
+    (item.disabled ? ' aria-disabled="true"' : '') + '>' +
+    (item.icon ? icon(item.icon, 'menu__icon') : '') +
+    '<span class="menu__label">' + esc(item.label) + '</span></button>';
+}
+
+/**
+ * 动作菜单：桌面端贴着触发元素浮出，移动端统一底部抽屉。
+ * @returns {{close:() => void}}
+ */
+export function openActionMenu(options = {}) {
+  const items = (options.items || []).filter(Boolean);
+  const anchor = options.anchor;
+  const rect = options.rect || (anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : null);
+  const desktop = window.matchMedia('(min-width: 840px)').matches && Boolean(rect);
+
+  if (!desktop) {
+    const body = '<div class="menu menu--sheet">' + items.map(menuItemHTML).join('') + '</div>';
+    const sheet = openSheet({ title: options.title || '', body });
+    bindMenuItems(sheet.body, items, sheet.close);
+    return { close: sheet.close, element: sheet.element };
+  }
+
+  const host = document.getElementById('dialog-root');
+  const menu = document.createElement('div');
+  menu.className = 'menu menu--popover';
+  menu.setAttribute('role', 'menu');
+  menu.innerHTML = (options.title ? '<div class="menu__title">' + esc(options.title) + '</div>' : '') +
+    items.map(menuItemHTML).join('');
+  host.appendChild(menu);
+
+  const box = menu.getBoundingClientRect();
+  const point = options.point || null;
+  const validRect = rect && rect.width > 0 && rect.height > 0;
+  const anchorLeft = validRect ? rect.right : (point && point.x ? point.x : window.innerWidth - 24);
+  const anchorTop = validRect ? rect.bottom : (point && point.y ? point.y : 80);
+  let left = anchorLeft - box.width;
+  left = Math.max(8, Math.min(left, window.innerWidth - box.width - 8));
+  let top = anchorTop + 6;
+  if (top + box.height > window.innerHeight - 8) top = anchorTop - box.height - 6;
+  menu.style.left = left + 'px';
+  menu.style.top = Math.max(8, top) + 'px';
+  requestAnimationFrame(() => menu.classList.add('is-open'));
+
+  let closed = false;
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    menu.classList.remove('is-open');
+    document.removeEventListener('pointerdown', onDown, true);
+    document.removeEventListener('keydown', onKey, true);
+    setTimeout(() => menu.remove(), 160);
+    if (options.onClose) options.onClose();
+  };
+  function onDown(event) { if (!menu.contains(event.target)) close(); }
+  function onKey(event) { if (event.key === 'Escape') close(); }
+  document.addEventListener('pointerdown', onDown, true);
+  document.addEventListener('keydown', onKey, true);
+  bindMenuItems(menu, items, close);
+  return { close, element: menu };
+}
+
+function bindMenuItems(root, items, close) {
+  root.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-index]');
+    if (!button) return;
+    const item = items[Number(button.dataset.index)];
+    if (!item || item.disabled) return;
+    close();
+    if (item.onSelect) item.onSelect();
+  });
+}
+
 /* ------------------------------ 歌曲列表 ------------------------------ */
 
 export function sourceDots(track) {
@@ -139,21 +216,23 @@ export function sourceDots(track) {
     track.sources.map((ref) => '<i style="background:' + (palette[ref.source] || 'currentColor') + '"></i>').join('') + '</span>';
 }
 
+function cachedIds() {
+  const cache = store.state.cache;
+  return cache && cache.ids instanceof Set ? cache.ids : null;
+}
+
 export function songRow(track, options = {}) {
-  const candidates = artworkCandidates(track);
-  const artwork = candidates[0] || '';
-  const fallbacks = candidates.slice(1).join('|');
   const playing = options.playingId === track.id;
-  const sub = [track.artist, track.album].filter(Boolean).join(' · ');
+  const sub = [track.artist, textOf(track.album)].filter(Boolean).join(' · ');
+  const ids = cachedIds();
+  const cached = ids ? ids.has(track.id) : false;
   return '<div class="list-item' + (playing ? ' is-playing' : '') + '" data-track-id="' + esc(track.id) + '" role="button" tabindex="0">' +
-    '<div class="list-item__art">' + icon('music_note') +
-      (artwork ? '<img data-cover loading="lazy" decoding="async" referrerpolicy="no-referrer" src="' + esc(artwork) + '" data-fallbacks="' + esc(fallbacks) + '" alt="">' : '') +
-    '</div>' +
+    '<div class="list-item__art">' + icon('music_note') + coverMarkup(track, { size: 120 }) + '</div>' +
     '<div class="list-item__body">' +
       '<div class="list-item__title">' + (playing ? '<span class="list-item__playing"><i></i><i></i><i></i></span>' : '') + esc(track.title) + '</div>' +
       '<div class="list-item__sub">' + esc(sub || '未知歌手') + '</div>' +
     '</div>' +
-    '<div class="list-item__trail">' + sourceDots(track) +
+    '<div class="list-item__trail">' + (cached ? '<span class="cache-dot" title="已缓存">' + icon('download_done', 'icon--18') + '</span>' : '') + sourceDots(track) +
       (track.duration ? '<span class="t-label-m">' + fmtTime(track.duration) + '</span>' : '') +
       '<button class="icon-btn" data-more aria-label="更多操作" tabindex="0">' + icon('more_vert') + '</button>' +
     '</div>' +
@@ -164,9 +243,6 @@ export function songList(tracks, options = {}) {
   return '<div class="list" data-songlist>' + tracks.map((track) => songRow(track, options)).join('') + '</div>';
 }
 
-/**
- * 绑定列表的点击行为：整行播放，更多按钮弹菜单
- */
 export function attachSongList(root, tracks, handlers = {}) {
   const byId = new Map(tracks.map((track) => [track.id, track]));
   const list = root.querySelector('[data-songlist]');
@@ -179,7 +255,7 @@ export function attachSongList(root, tracks, handlers = {}) {
     if (!track) return;
     if (event.target.closest('[data-more]')) {
       event.stopPropagation();
-      if (handlers.onMore) handlers.onMore(track, row);
+      if (handlers.onMore) handlers.onMore(track, row.querySelector('[data-more]'), event);
       return;
     }
     if (handlers.onPlay) handlers.onPlay(track, tracks);
@@ -191,26 +267,11 @@ export function attachSongList(root, tracks, handlers = {}) {
     if (!row) return;
     event.preventDefault();
     if (event.target.closest('[data-more]')) {
-      if (handlers.onMore) handlers.onMore(byId.get(row.dataset.trackId), row);
+      if (handlers.onMore) handlers.onMore(byId.get(row.dataset.trackId), row.querySelector('[data-more]'), event);
     } else if (handlers.onPlay) {
       handlers.onPlay(byId.get(row.dataset.trackId), tracks);
     }
   });
-}
-
-/** 图片加载失败时移除，露出图标占位 */
-export function installCoverFallback() {
-  document.addEventListener('error', (event) => {
-    const img = event.target;
-    if (!img || img.tagName !== 'IMG' || !img.hasAttribute('data-cover')) return;
-    const rest = String(img.getAttribute('data-fallbacks') || '').split('|').filter(Boolean);
-    if (rest.length) {
-      img.setAttribute('data-fallbacks', rest.slice(1).join('|'));
-      img.src = rest[0];
-      return;
-    }
-    img.remove();
-  }, true);
 }
 
 export function emptyState(iconName, title, hint) {

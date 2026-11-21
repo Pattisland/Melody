@@ -10,7 +10,7 @@ const state = {
     track: null, playing: false, current: 0, duration: 0,
     queue: [], index: -1, mode: 'mini', loading: false, error: null, repeat: 'off', shuffle: false,
   },
-  cache: { count: 0, bytes: 0 },
+  cache: { count: 0, bytes: 0, ids: new Set() },
   tasks: { active: 0 },
 };
 
