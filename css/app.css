@@ -1061,3 +1061,29 @@ img[data-cover].is-missing { opacity: 0; }
 .swatch.is-active .swatch__dot { box-shadow: 0 0 0 3px var(--md-sys-color-surface), 0 0 0 5px var(--md-sys-color-primary); }
 .swatch__name { font-size: var(--ts-label-small-size); color: var(--md-sys-color-on-surface-variant); }
 
+
+
+/* 队列角标与任务行 */
+.nav__badge {
+  position: absolute; top: 4px; right: 12px;
+  min-width: 18px; height: 18px; padding: 0 5px;
+  display: grid; place-items: center;
+  border-radius: var(--shape-full);
+  background: var(--md-sys-color-error);
+  color: var(--md-sys-color-on-error);
+  font-size: 11px; font-weight: 600; line-height: 1;
+}
+.nav__badge.is-paused { background: var(--md-sys-color-surface-container-highest); color: var(--md-sys-color-on-surface-variant); }
+@media (max-width: 839px) {
+  .nav__badge { top: 2px; right: calc(50% - 30px); }
+}
+.task-row { align-items: center; }
+.task-row__progress { height: 3px; margin-top: 6px; border-radius: 2px; background: var(--md-sys-color-surface-container-highest); overflow: hidden; }
+.task-row__progress span { display: block; height: 100%; border-radius: 2px; background: var(--md-sys-color-primary); transition: width var(--dur-3) linear; }
+.task-row[data-status="failed"] .task-row__progress span,
+.task-row[data-status="cancelled"] .task-row__progress span { background: var(--md-sys-color-error); }
+.task-row .list-item__trail { gap: 2px; }
+
+
+.task-row__progress.is-indet span { width: 40%; animation: indet 1.4s var(--ease-std) infinite; }
+

@@ -17,6 +17,7 @@ export const DEFAULT_SETTINGS = {
   'prefs.density': 'comfortable',
   'prefs.notifyCache': true,
   'prefs.playerTint': true,
+  'prefs.cacheConcurrency': 2,
 };
 
 export async function loadSettings() {

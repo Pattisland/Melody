@@ -11,7 +11,7 @@ const state = {
     queue: [], index: -1, mode: 'mini', loading: false, error: null, repeat: 'off', shuffle: false,
   },
   cache: { count: 0, bytes: 0, ids: new Set() },
-  tasks: { active: 0 },
+  tasks: { items: [], active: 0, waiting: 0, done: 0, failed: 0, paused: false },
 };
 
 const subs = new Set();

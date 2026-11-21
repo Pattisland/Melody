@@ -9,6 +9,7 @@ import {
 } from '../../data/repo.js';
 import { SOURCES, DEFAULT_ORDER } from '../../sources/registry.js';
 import * as idb from '../../data/db.js';
+import { mountTasks } from './tasks.js';
 import { saveBlob } from '../../download/download.js';
 import { openDialog, toast, emptyState } from '../components.js';
 
@@ -341,6 +342,16 @@ async function renderPrefs(root) {
           '<button class="segmented__item" data-value="' + key + '" aria-selected="' + (density === key) + '">' + label + '</button>').join('') +
       '</div></div>' +
       prefSwitch('prefs.reduceMotion', '减少动画', '关掉页面切换与过渡动效', Boolean(settings['prefs.reduceMotion'])) +
+    '</div>' +
+    '<div class="group">' +
+      '<div class="group__label">缓存</div>' +
+      '<div class="list-item" style="cursor:default"><div class="list-item__body">' +
+        '<div class="list-item__title">同时缓存数量</div>' +
+        '<div class="list-item__sub">网络不稳时调小，越大多占带宽</div></div></div>' +
+      '<div style="padding:0 20px 14px"><div class="segmented" data-concurrency style="width:100%">' +
+        [1, 2, 3, 4].map((n) =>
+          '<button class="segmented__item" data-value="' + n + '" aria-selected="' + (Number(settings['prefs.cacheConcurrency'] || 2) === n) + '">' + n + '</button>').join('') +
+      '</div></div>' +
     '</div>';
 
   async function set(key, value) {
@@ -353,6 +364,9 @@ async function renderPrefs(root) {
   });
   root.querySelectorAll('[data-density] .segmented__item').forEach((button) => {
     button.addEventListener('click', async () => { await set('prefs.density', button.dataset.value); renderPrefs(root); });
+  });
+  root.querySelectorAll('[data-concurrency] .segmented__item').forEach((button) => {
+    button.addEventListener('click', async () => { await set('prefs.cacheConcurrency', Number(button.dataset.value)); renderPrefs(root); });
   });
 }
 
@@ -475,7 +489,7 @@ export const meRoutes = [
   { path: '/me/theme', level: 2, title: '主题配色', mount: renderTheme },
   { path: '/me/sources', level: 2, title: '来源设置', mount: renderSources },
   { path: '/me/prefs', level: 2, title: '偏好设置', mount: renderPrefs },
-  { path: '/me/tasks', level: 2, title: '任务进度', mount: renderStub },
+  { path: '/me/tasks', level: 2, title: '任务进度', mount: mountTasks },
   { path: '/me/data', level: 2, title: '数据管理', mount: renderData },
   { path: '/me/about', level: 2, title: '关于', mount: renderAbout },
 ];

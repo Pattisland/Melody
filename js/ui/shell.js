@@ -245,6 +245,17 @@ export function mountShell() {
     if (event.key === 'Escape' && store.state.player.mode === 'full') setMode('mini');
   });
 
+  const badge = document.querySelector('[data-nav-badge]');
+  const refreshBadge = (state) => {
+    if (!badge) return;
+    const count = (state.tasks.active || 0) + (state.tasks.waiting || 0);
+    badge.hidden = count === 0;
+    badge.textContent = String(count);
+    badge.classList.toggle('is-paused', Boolean(state.tasks.paused));
+  };
+  refreshBadge(store.state);
+  store.subscribe((state, changed) => { if (changed.includes('tasks')) refreshBadge(state); });
+
   const topbar = document.getElementById('topbar');
   window.addEventListener('scroll', () => {
     if (!topbar) return;

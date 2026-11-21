@@ -5,7 +5,7 @@ import {
   isFavorite, toggleFavorite, listPlaylists, addToPlaylist, createPlaylist,
   getCacheEntry, removeCache, isSubscribed, addSubscription, removeSubscription,
 } from '../data/repo.js';
-import { cacheTrack } from '../player/cache.js';
+import { enqueue, taskOf } from '../player/queue.js';
 import { downloadTrack } from '../download/download.js';
 import { refreshCacheState } from './cache-state.js';
 import { store } from '../core/store.js';
@@ -53,29 +53,26 @@ export async function openTrackMenu(track, options = {}) {
     },
     {
       icon: cached ? 'download_done' : 'download',
-      label: cached ? '重新缓存' : '缓存到本地',
+      label: cached ? '重新缓存' : '加入缓存队列',
       onSelect: async () => {
-        toast('开始缓存…');
-        try {
-          await cacheTrack(profileId, track, {
-            settings: store.state.settings,
-            onProgress: (got, total) => {
-              if (total && store.state.settings['prefs.notifyCache'] !== false) {
-                toast('缓存 ' + Math.round((got / total) * 100) + '%', { timeout: 1200 });
-              }
-            },
-          });
-          await refreshCacheState(profileId);
-          toast('缓存完成');
-          if (options.onCacheChange) options.onCacheChange();
-        } catch (err) { toast('缓存失败：' + err.message); }
+        if (cached) await removeCache(profileId, track.id);
+        const added = await enqueue(track);
+        await refreshCacheState(profileId);
+        toast(added ? '已加入缓存队列' : '已在队列中');
+        if (options.onCacheChange) options.onCacheChange();
       },
     },
     {
       icon: 'save_alt',
-      label: cached ? '下载到设备' : '下载到设备（需先缓存）',
-      disabled: !cached,
+      label: '下载到设备',
+      hint: cached ? '' : '未缓存，会先加入队列',
       onSelect: async () => {
+        if (!cached) {
+          const pending = taskOf(track.id);
+          if (!pending) await enqueue(track);
+          toast(pending ? '缓存进行中，完成后可在「任务进度」里下载' : '已加入缓存队列，完成后可在「任务进度」里下载');
+          return;
+        }
         try { await downloadTrack(profileId, track); } catch (err) { toast('下载失败：' + err.message); }
       },
     },
