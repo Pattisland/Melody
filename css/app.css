@@ -1197,3 +1197,16 @@ html.theme-transition *:not(.player):not(.sheet):not(.dialog):not(.menu--popover
   .home-card__scroll .media__art { width: 100%; }
 }
 
+
+/* 波形在所有尺寸下都贯穿内容列（不吃页面内边距） */
+.waves { margin-left: calc(-1 * var(--gutter)); margin-right: calc(-1 * var(--gutter)); }
+
+
+/* 无障碍：读屏专用文本与统一焦点环 */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+:focus-visible { outline: 3px solid var(--md-sys-color-primary); outline-offset: 2px; }
+.list-item:focus-visible, button:focus-visible { outline-offset: 1px; }
+

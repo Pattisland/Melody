@@ -263,6 +263,17 @@ export function mountShell() {
   refreshBadge(store.state);
   store.subscribe((state, changed) => { if (changed.includes('tasks')) refreshBadge(state); });
 
+  // 读屏播报：切歌时把曲名丢进 live region
+  let announced = '';
+  const live = document.querySelector('[data-live]');
+  store.subscribe((state, changed) => {
+    if (!changed.includes('player')) return;
+    const track = state.player.track;
+    if (!track || track.id === announced) return;
+    announced = track.id;
+    if (live) live.textContent = '正在播放 ' + track.title + (track.artist ? '，' + track.artist : '');
+  });
+
   const topbar = document.getElementById('topbar');
   window.addEventListener('scroll', () => {
     if (!topbar) return;

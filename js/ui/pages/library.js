@@ -2,8 +2,9 @@
 import { esc, icon, fmtBytes, fmtTime } from '../../core/util.js';
 import { router } from '../../core/router.js';
 import { store } from '../../core/store.js';
-import { listHistory, listFavorites, listCached, listPlaylists, createPlaylist, getProfile } from '../../data/repo.js';
-import { songList, attachSongList, emptyState, toast } from '../components.js';
+import { listHistory, listFavorites, listCached, listPlaylists, createPlaylist, getProfile,
+  listPlaylistItems, renamePlaylist, deletePlaylist, removeFromPlaylist } from '../../data/repo.js';
+import { songList, attachSongList, emptyState, toast, askText, openDialog } from '../components.js';
 import { openTrackMenu } from '../track-menu.js';
 import { openTrackInfo } from '../track-info.js';
 import { player } from '../../player/player.js';
@@ -53,7 +54,9 @@ async function renderLibrary(root) {
   });
   const create = root.querySelector('[data-new-list]');
   create.addEventListener('click', async () => {
-    const created = await createPlaylist(profileId, '新建歌单');
+    const name = await askText({ title: '新建歌单', label: '歌单名称', placeholder: '例如：夜里开车', confirmText: '创建' });
+    if (!name) return;
+    const created = await createPlaylist(profileId, name);
     router.go('/library/p/' + created.id);
   });
 }
@@ -75,9 +78,39 @@ async function renderDetail(root, kind, playlistId) {
     const bytes = rows.reduce((sum, row) => sum + (row.bytes || 0), 0);
     root.innerHTML = '<p class="t-body-m muted" style="padding:0 4px 12px">共 ' + rows.length + ' 首 · ' + fmtBytes(bytes) + '</p>';
   } else if (kind === 'playlist' && playlistId) {
-    title = '歌单';
-    const rows = await (await import('../../data/repo.js')).listPlaylistItems(playlistId);
+    const lists = await listPlaylists(profileId);
+    const current = lists.find((row) => row.id === playlistId);
+    title = current ? current.name : '歌单';
+    const rows = await listPlaylistItems(playlistId);
     tracks = rows.map((row) => row.track);
+    if (current) {
+      root.innerHTML =
+        '<div class="row gap-8" style="justify-content:flex-end;padding:0 4px 10px">' +
+          '<button class="btn btn--text btn--sm" data-rename>' + icon('edit') + '重命名</button>' +
+          '<button class="btn btn--text btn--sm" data-delete>' + icon('delete') + '删除</button>' +
+        '</div>';
+      root.querySelector('[data-rename]').addEventListener('click', async () => {
+        const name = await askText({ title: '重命名歌单', label: '歌单名称', value: current.name, confirmText: '保存' });
+        if (!name || name === current.name) return;
+        await renamePlaylist(playlistId, name);
+        toast('已重命名为「' + name + '」');
+        routeReload();
+      });
+      root.querySelector('[data-delete]').addEventListener('click', () => {
+        openDialog({
+          title: '删除歌单？',
+          description: '「' + current.name + '」会被删除，歌本身不受影响。',
+          actions: [
+            { label: '取消', variant: 'text' },
+            { label: '删除', variant: 'danger', onClick: async () => {
+              await deletePlaylist(playlistId);
+              toast('已删除歌单');
+              router.go('/library');
+            } },
+          ],
+        });
+      });
+    }
   }
 
   const host = document.createElement('div');
@@ -92,6 +125,15 @@ async function renderDetail(root, kind, playlistId) {
     onPlay: (track) => player.playTrack(track, { queue: tracks }),
     onMore: (track, anchor, event) => openTrackMenu(track, {
       anchor, point: event,
+      extra: kind === 'playlist' && playlistId ? [{
+        icon: 'playlist_remove',
+        label: '从歌单移除',
+        onSelect: async () => {
+          await removeFromPlaylist(playlistId, track.id);
+          toast('已从歌单移除');
+          routeReload();
+        },
+      }] : [],
       onFavoriteChange: () => { if (kind === 'favorites') routeReload(); },
       onCacheChange: () => { if (kind === 'cache') routeReload(); },
     }),

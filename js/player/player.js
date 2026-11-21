@@ -80,10 +80,60 @@ class Player {
       const message = audio.error ? '播放失败（' + (audio.error.code || '?') + '）' : '播放失败';
       store.patch('player', { error: message, playing: false, loading: false });
     });
+    this.bindKeys();
     window.addEventListener('pagehide', () => this.flushListen());
     document.addEventListener('visibilitychange', () => { if (document.hidden) this.flushListen(); });
     this.bindMediaSession();
     store.patch('player', { repeat: this.repeat, shuffle: this.shuffle });
+  }
+
+  /** 全局快捷键：空格播放/暂停，←→ ±5s，↑↓ 音量，M 静音，F 收藏 */
+  bindKeys() {
+    if (this._keysBound) return;
+    this._keysBound = true;
+    document.addEventListener('keydown', (event) => {
+      if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable)) return;
+      if (!this.track || !this.audio) return;
+      switch (event.key) {
+        case ' ':
+        case 'Spacebar':
+          event.preventDefault();
+          this.toggle();
+          break;
+        case 'ArrowRight':
+          if (this.audio.duration) {
+            event.preventDefault();
+            this.audio.currentTime = Math.min(this.audio.duration - 0.2, this.audio.currentTime + 5);
+          }
+          break;
+        case 'ArrowLeft':
+          event.preventDefault();
+          this.audio.currentTime = Math.max(0, this.audio.currentTime - 5);
+          break;
+        case 'ArrowUp':
+          event.preventDefault();
+          this.setVolume(Math.min(1, (this.audio.volume || 0) + 0.05));
+          break;
+        case 'ArrowDown':
+          event.preventDefault();
+          this.setVolume(Math.max(0, (this.audio.volume || 0) - 0.05));
+          break;
+        case 'm':
+        case 'M':
+          this.audio.muted = !this.audio.muted;
+          break;
+        case 'f':
+        case 'F': {
+          const fav = document.querySelector('.player.is-open [data-fav]');
+          if (fav) fav.click();
+          break;
+        }
+        default:
+          break;
+      }
+    });
   }
 
   bindMediaSession() {
@@ -113,6 +163,7 @@ class Player {
   }
 
   async playTrack(track, options = {}) {
+    this.track = track;
     if (!track) return;
     if (options.queue) {
       this.queue = options.queue.slice();

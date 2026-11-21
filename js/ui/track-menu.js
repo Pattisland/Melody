@@ -1,5 +1,5 @@
 /* 曲目操作菜单：移动端底部抽屉，桌面端贴着三点浮出 */
-import { openActionMenu, openSheet, toast } from './components.js';
+import { openActionMenu, openSheet, toast, askText } from './components.js';
 import { esc, icon } from '../core/util.js';
 import {
   isFavorite, toggleFavorite, listPlaylists, addToPlaylist, createPlaylist,
@@ -24,6 +24,7 @@ export async function openTrackMenu(track, options = {}) {
   ]);
 
   const items = [
+    ...(options.extra || []),
     { icon: 'play_arrow', label: '立即播放', onSelect: () => player.playTrack(track) },
     {
       icon: favorited ? 'favorite' : 'favorite_border',
@@ -118,7 +119,7 @@ export async function openPlaylistPicker(track) {
     const row = event.target.closest('[data-list]');
     const createRow = event.target.closest('[data-new]');
     if (createRow) {
-      const name = window.prompt('歌单名称', '新建歌单');
+      const name = await askText({ title: '新建歌单', label: '歌单名称', placeholder: '例如：夜里开车', confirmText: '创建' });
       if (!name) return;
       const list = await createPlaylist(profileId, name);
       await addToPlaylist(list.id, track);

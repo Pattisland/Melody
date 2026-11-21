@@ -50,6 +50,26 @@ function removeScrim(scrim) {
 
 /* ------------------------------ 对话框 ------------------------------ */
 
+/** 把 Tab 焦点锁在容器内，关闭时把焦点还给原处 */
+function trapFocus(container) {
+  const previous = document.activeElement;
+  const onKey = (event) => {
+    if (event.key !== 'Tab') return;
+    const items = Array.from(container.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'))
+      .filter((node) => !node.disabled && node.offsetParent !== null);
+    if (!items.length) return;
+    const first = items[0];
+    const last = items[items.length - 1];
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+  };
+  document.addEventListener('keydown', onKey);
+  return () => {
+    document.removeEventListener('keydown', onKey);
+    if (previous && previous.focus && previous.isConnected) previous.focus({ preventScroll: true });
+  };
+}
+
 export function openDialog(options = {}) {
   const root = document.getElementById('dialog-root');
   const scrim = makeScrim(() => close());
@@ -69,6 +89,7 @@ export function openDialog(options = {}) {
   root.appendChild(dialog);
 
   let closed = false;
+  const releaseFocus = trapFocus(dialog);
   function close() {
     if (closed) return;
     closed = true;
@@ -76,6 +97,7 @@ export function openDialog(options = {}) {
     removeScrim(scrim);
     setTimeout(() => dialog.remove(), 240);
     document.removeEventListener('keydown', onKey);
+    releaseFocus();
     if (options.onClose) options.onClose();
   }
   function onKey(event) { if (event.key === 'Escape') close(); }
@@ -96,6 +118,38 @@ export function openDialog(options = {}) {
   const focusable = dialog.querySelector('input, textarea, button.btn--filled, button.btn--danger') || dialog.querySelector('button');
   if (focusable) setTimeout(() => focusable.focus({ preventScroll: true }), 80);
   return { element: dialog, close, body: dialog.querySelector('.dialog__body') };
+}
+
+/** 单行文本输入对话框，返回输入值或 null */
+export function askText(options = {}) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = (value) => { if (!settled) { settled = true; resolve(value); } };
+    const dialog = openDialog({
+      title: options.title || '',
+      description: options.description || '',
+      body: '<label class="field"><span class="field__label">' + esc(options.label || '') + '</span>' +
+        '<input class="input" data-ask value="' + esc(options.value || '') + '" placeholder="' + esc(options.placeholder || '') + '"></label>',
+      actions: [
+        { label: options.cancelText || '取消', variant: 'text', onClick: () => done(null) },
+        { label: options.confirmText || '确定', variant: 'filled', onClick: () => {
+          const input = dialog.element.querySelector('[data-ask]');
+          done(input && input.value.trim() ? input.value.trim() : null);
+        } },
+      ],
+      onClose: () => done(null),
+    });
+    const input = dialog.element.querySelector('[data-ask]');
+    if (input) {
+      input.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          done(input.value.trim() || null);
+          dialog.close();
+        }
+      });
+    }
+  });
 }
 
 /* ------------------------------ 底部抽屉 ------------------------------ */
