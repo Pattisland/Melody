@@ -760,8 +760,8 @@ body[data-paused="true"] .list-item__playing i { animation-play-state: paused; }
 }
 .home-head__title {
   margin: 0;
-  font-size: clamp(2.5rem, 7.2vw, 3.5rem);
-  font-weight: 700; letter-spacing: -.035em; line-height: 1.02;
+  font-size: clamp(3rem, 9vw, 4.5rem);
+  font-weight: 700; letter-spacing: -.04em; line-height: 1;
 }
 .home-head__tagline {
   margin-top: 6px;
@@ -817,8 +817,8 @@ body[data-paused="true"] .list-item__playing i { animation-play-state: paused; }
 }
 
 /* 媒体磁贴 */
-.media-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 14px; }
-.media { max-width: 190px; }
+.media-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
+.media { max-width: 320px; }
 .media {
   display: flex; flex-direction: column; gap: 8px; min-width: 0;
   border: 0; background: none; padding: 0; cursor: pointer; text-align: left;
@@ -1110,7 +1110,7 @@ img[data-cover].is-missing { opacity: 0; }
 
 /* 订阅：每个歌手一组，组内横向排列 */
 .album-row { display: flex; gap: 12px; overflow-x: auto; overflow-y: hidden; padding: 2px 2px 8px; }
-.album-row .media { flex: 1 1 0; min-width: 112px; max-width: 172px; }
+.album-row .media { flex: 1 1 0; min-width: 120px; max-width: 210px; }
 .sub-artist + .sub-artist { margin-top: 18px; }
 
 /* 自绘滚动条 */
