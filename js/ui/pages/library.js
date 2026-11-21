@@ -27,7 +27,7 @@ async function renderLibrary(root) {
     '<p class="hero__sub">' + esc((await getProfile(profileId).then((p) => (p && p.name) || '我的档案'))) + ' · 收藏、歌单与缓存</p></div>' +
     '<div class="section"><div class="list">' + SYSTEM.map((item) =>
       '<div class="list-item" data-sys="' + item.key + '" role="button" tabindex="0">' +
-        '<div class="list-item__art lib-row__art">' + icon(item.icon, 'icon--24') + '</div>' +
+        '<div class="list-item__art list-item__art--icon">' + icon(item.icon) + '</div>' +
         '<div class="list-item__body"><div class="list-item__title">' + esc(item.label) + '</div>' +
         '<div class="list-item__sub">' + (stats[item.key] || 0) + ' 首 · ' + esc(item.hint) + '</div></div>' +
         '<div class="list-item__trail">' + icon('chevron_right') + '</div>' +
