@@ -2,12 +2,57 @@
 import { store } from '../core/store.js';
 import { cacheTrack } from './cache.js';
 import { getCacheEntry } from '../data/repo.js';
+import * as idb from '../data/db.js';
 import { refreshCacheState } from '../ui/cache-state.js';
 import { toast } from '../ui/components.js';
 
 const tasks = new Map();
 const controllers = new Map();
 let paused = false;
+let persistTimer = 0;
+
+/** 队列落库：只留未完成的，刷新页面后能接着跑 */
+function persist() {
+  clearTimeout(persistTimer);
+  persistTimer = setTimeout(async () => {
+    try {
+      const rows = Array.from(tasks.values())
+        .filter((task) => task.status === 'waiting' || task.status === 'failed' || task.status === 'running')
+        .map((task) => ({
+          id: task.id,
+          track: task.track,
+          status: task.status === 'running' ? 'waiting' : task.status,
+          attempt: task.attempt || 0,
+          error: task.error || '',
+        }));
+      await idb.clear('queue');
+      if (rows.length) await idb.putAll('queue', rows);
+    } catch (_) { /* 落库失败不影响本次会话 */ }
+  }, 400);
+}
+
+/** 启动时恢复上次没跑完/失败的队列 */
+export async function restoreQueue() {
+  try {
+    const rows = await idb.all('queue');
+    for (const row of rows) {
+      if (!row || !row.track || !row.id || tasks.has(row.id)) continue;
+      tasks.set(row.id, {
+        id: row.id,
+        track: row.track,
+        status: 'waiting',
+        received: 0,
+        total: 0,
+        error: row.error || '',
+        attempt: row.attempt || 0,
+        startedAt: 0,
+        finishedAt: 0,
+      });
+    }
+  } catch (_) { /* 忽略 */ }
+  publish();
+  schedule();
+}
 
 function concurrency() {
   const raw = Number((store.state.settings || {})['prefs.cacheConcurrency'] || 2);
@@ -29,6 +74,7 @@ function publish() {
     failed: items.filter((task) => task.status === 'failed').length,
     paused,
   });
+  persist();
 }
 
 export function listTasks() { return Array.from(tasks.values()); }

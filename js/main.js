@@ -9,6 +9,7 @@ import { toast } from './ui/components.js';
 import { installCoverEngine } from './ui/cover.js';
 import { refreshCacheState } from './ui/cache-state.js';
 import { player } from './player/player.js';
+import { restoreQueue } from './player/queue.js';
 import { artworkCandidates } from './sources/registry.js';
 import { requestPersistentStorage } from './core/util.js';
 import { homeRoute } from './ui/pages/home.js';
@@ -115,15 +116,17 @@ async function boot() {
   });
 
   refreshCacheState(active.profile.id).catch(() => {});
+  restoreQueue().catch(() => {});
   on(['profileId'], () => { refreshCacheState(store.state.profileId).catch(() => {}); });
 
   requestPersistentStorage().catch(() => {});
 
   const localHost = location.hostname === '127.0.0.1' || location.hostname === 'localhost' || location.hostname === '';
-  if ('serviceWorker' in navigator && location.protocol !== 'file:' && !localHost) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js').catch(() => {});
-    });
+  const forceSw = new URLSearchParams(location.search).has('sw');
+  if ('serviceWorker' in navigator && location.protocol !== 'file:' && (!localHost || forceSw)) {
+    const register = () => navigator.serviceWorker.register('./sw.js').catch(() => {});
+    if (document.readyState === 'complete') register();
+    else window.addEventListener('load', register, { once: true });
   }
 
   // 键盘：空格切换播放（输入框内不拦截）

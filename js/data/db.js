@@ -1,6 +1,6 @@
 /* IndexedDB 封装：单库多表，所有操作返回 Promise */
 const DB_NAME = 'melody';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 /** [表名, 主键, 索引[], 自增] */
 const SCHEMA = [
@@ -18,6 +18,7 @@ const SCHEMA = [
   ['plays', 'id', ['profileId'], true],
   ['subscriptions', 'id', ['profileId'], false],
   ['thumbs', 'id', [], false],
+  ['queue', 'id', [], false],
 ];
 
 let handle = null;
