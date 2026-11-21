@@ -1303,3 +1303,51 @@ html.theme-transition *:not(.player):not(.sheet):not(.dialog):not(.menu--popover
 @media (min-width: 900px) {
   .player__lyrics { height: min(30vw, 340px); }
 }
+
+
+/* 歌单详情头部：封面取第一首、名称、描述 */
+.pl-head { display: flex; gap: 16px; align-items: center; padding: 0 4px 14px; }
+.pl-head__art {
+  position: relative; width: 96px; height: 96px; flex: 0 0 auto;
+  border-radius: var(--shape-lg); overflow: hidden;
+  display: grid; place-items: center;
+  background: var(--md-sys-color-surface-container-high);
+  color: var(--md-sys-color-on-surface-variant);
+}
+.pl-head__art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.pl-head__body { min-width: 0; flex: 1 1 auto; }
+.pl-head__name { font-size: var(--ts-headline-small-size); font-weight: 700; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-head__meta { margin-top: 4px; font-size: var(--ts-body-small-size); color: var(--md-sys-color-on-surface-variant); }
+.pl-head__desc {
+  margin-top: 6px; font-size: var(--ts-body-medium-size); color: var(--md-sys-color-on-surface-variant);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.pl-head__hint { color: var(--md-sys-color-on-surface-variant); opacity: .65; }
+.pl-actions { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 0 12px; }
+@media (max-width: 599px) { .pl-head__art { width: 72px; height: 72px; } }
+
+
+/* 播放队列面板 */
+.qlist { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.qlist__head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 12px 4px 4px; font-size: var(--ts-label-large-size);
+  color: var(--md-sys-color-on-surface-variant);
+}
+.qlist__row { display: flex; align-items: center; gap: 12px; padding: 6px; border-radius: var(--shape-md); cursor: pointer; }
+.qlist__row:hover { background: color-mix(in srgb, var(--md-sys-color-on-surface) 6%, transparent); }
+.qlist__row.is-current { background: var(--md-sys-color-secondary-container); }
+.qlist__row.is-current .qlist__title { color: var(--md-sys-color-on-secondary-container); }
+.qlist__art {
+  position: relative; width: 40px; height: 40px; flex: 0 0 auto; border-radius: var(--shape-sm);
+  overflow: hidden; display: grid; place-items: center;
+  background: var(--md-sys-color-surface-container-high);
+  color: var(--md-sys-color-on-surface-variant);
+}
+.qlist__art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.qlist__body { min-width: 0; flex: 1 1 auto; }
+.qlist__title { font-size: var(--ts-body-medium-size); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qlist__sub { font-size: var(--ts-body-small-size); color: var(--md-sys-color-on-surface-variant); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qlist__tag { flex: 0 0 auto; font-size: var(--ts-label-small-size); color: var(--md-sys-color-primary); padding-right: 6px; }
+.qlist__remove { flex: 0 0 auto; }
+.qlist__empty { padding: 16px 4px; color: var(--md-sys-color-on-surface-variant); font-size: var(--ts-body-medium-size); }

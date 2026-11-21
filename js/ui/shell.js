@@ -5,6 +5,7 @@ import { player } from '../player/player.js';
 import { activeLineIndex } from '../player/lyrics.js';
 import { coverSources } from './cover.js';
 import { openTrackMenu } from './track-menu.js';
+import { openQueuePanel } from './queue-panel.js';
 import { isFavorite, toggleFavorite, saveSetting } from '../data/repo.js';
 
 let els = {};
@@ -105,6 +106,7 @@ function renderPlayer() {
       '<div class="player__top">' +
         '<button class="icon-btn" data-collapse aria-label="收起">' + icon('keyboard_arrow_down') + '</button>' +
         '<div class="player__top-title">正在播放</div>' +
+        '<button class="icon-btn" data-queue aria-label="播放队列">' + icon('queue_music') + '</button>' +
         '<button class="icon-btn" data-more aria-label="更多">' + icon('more_vert') + '</button>' +
       '</div>' +
       (desktop ? '' : '<div class="tabbar tabbar--center" role="tablist" aria-label="播放器视图">' +
@@ -158,6 +160,7 @@ function renderPlayer() {
   node.querySelector('[data-shuffle]').addEventListener('click', () => { player.toggleShuffle(); renderPlayer(); });
   node.querySelector('[data-repeat]').addEventListener('click', () => { player.cycleRepeat(); renderPlayer(); });
   node.querySelector('[data-more]').addEventListener('click', (event) => openTrackMenu(track, { anchor: event.currentTarget }));
+  node.querySelector('[data-queue]').addEventListener('click', () => openQueuePanel());
   node.querySelectorAll('[data-view]').forEach((button) => {
     button.addEventListener('click', () => { viewMode = button.dataset.view; renderPlayer(); });
   });

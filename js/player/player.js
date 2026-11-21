@@ -341,6 +341,27 @@ class Player {
     this.playTrack(this.queue[index], { queue: this.queue });
   }
 
+  /** 从队列里删掉一首（不动正在播放的那首） */
+  removeFromQueue(trackId) {
+    const target = this.queue.findIndex((item) => item.id === trackId);
+    if (target < 0 || target === this.index) return false;
+    const currentId = this.queue[this.index] ? this.queue[this.index].id : '';
+    this.queue.splice(target, 1);
+    this.index = this.queue.findIndex((item) => item.id === currentId);
+    this.rebuildShuffle();
+    store.patch('player', { queue: this.queue.slice(), index: this.index });
+    return true;
+  }
+
+  /** 清空接下来：只保留当前这首 */
+  clearUpcoming() {
+    const current = this.queue[this.index];
+    this.queue = current ? [current] : [];
+    this.index = current ? 0 : -1;
+    this.rebuildShuffle();
+    store.patch('player', { queue: this.queue.slice(), index: this.index });
+  }
+
   setMode(mode) { store.patch('player', { mode }); }
 
   setSettings(settings) { this.settings = settings; }

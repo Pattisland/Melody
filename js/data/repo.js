@@ -435,6 +435,14 @@ export async function renamePlaylist(id, name) {
   return next;
 }
 
+export async function updatePlaylist(id, patch) {
+  const row = await idb.get('playlists', id);
+  if (!row) return null;
+  const next = { ...row, ...patch, updatedAt: Date.now() };
+  await idb.put('playlists', next);
+  return next;
+}
+
 export async function deletePlaylist(id) {
   const items = await idb.byIndex('playlistItems', 'playlistId', id);
   await idb.removeMany('playlistItems', items.map((row) => row.id));
@@ -460,6 +468,22 @@ export async function addToPlaylist(playlistId, track) {
 export async function listPlaylistItems(playlistId) {
   const rows = await idb.byIndex('playlistItems', 'playlistId', playlistId);
   return rows.sort((a, b) => (a.position || 0) - (b.position || 0));
+}
+
+/** 歌单内上下移动一首（delta = -1 上移 / +1 下移） */
+export async function movePlaylistItem(playlistId, trackId, delta) {
+  const items = await listPlaylistItems(playlistId);
+  const index = items.findIndex((row) => row.trackId === trackId);
+  const target = index + delta;
+  if (index < 0 || target < 0 || target >= items.length) return false;
+  const [moved] = items.splice(index, 1);
+  items.splice(target, 0, moved);
+  await Promise.all(items.map((row, position) => (
+    row.position === position ? null : idb.put('playlistItems', { ...row, position })
+  )));
+  const list = await idb.get('playlists', playlistId);
+  if (list) await idb.put('playlists', { ...list, updatedAt: Date.now() });
+  return true;
 }
 
 export async function removeFromPlaylist(playlistId, trackId) {
