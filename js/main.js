@@ -132,7 +132,9 @@ async function boot() {
   });
 
   refreshCacheState(active.profile.id).catch(() => {});
-  restoreQueue().catch(() => {});
+  restoreQueue().then((restored) => {
+    if (restored > 0) toast('已恢复上次的 ' + restored + ' 个缓存任务，可在任务进度里查看');
+  }).catch(() => {});
   on(['profileId'], () => { refreshCacheState(store.state.profileId).catch(() => {}); });
 
   requestPersistentStorage().catch(() => {});

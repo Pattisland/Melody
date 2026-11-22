@@ -31,8 +31,9 @@ function persist() {
   }, 400);
 }
 
-/** 启动时恢复上次没跑完/失败的队列 */
+/** 启动时恢复上次没跑完/失败的队列，返回恢复的条数 */
 export async function restoreQueue() {
+  let restored = 0;
   try {
     const rows = await idb.all('queue');
     for (const row of rows) {
@@ -48,10 +49,12 @@ export async function restoreQueue() {
         startedAt: 0,
         finishedAt: 0,
       });
+      restored += 1;
     }
   } catch (_) { /* 忽略 */ }
   publish();
   schedule();
+  return restored;
 }
 
 function concurrency() {
