@@ -1419,6 +1419,18 @@ html.theme-transition *:not(.player):not(.sheet):not(.dialog):not(.menu--popover
 .group__label.row-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-right: 4px; }
 .group__label.row-head .btn { margin: -6px 0; }
 
+/* 移动端：封面再小一点，底栏图标垂直居中 */
+@media (max-width: 839px) {
+  .media-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
+  .home-card__scroll .media { max-width: none; }
+  .media__title { font-size: var(--ts-body-small-size); }
+  .media__sub { font-size: var(--ts-label-small-size); }
+  .nav { align-items: stretch; padding: 6px 8px calc(6px + var(--safe-b)); }
+  .nav__item { height: auto; justify-content: center; gap: 3px; padding: 2px 0; }
+  .nav__icon { display: grid; place-items: center; height: 26px; line-height: 1; }
+  .nav__ind { margin-top: -30px; height: 30px; }
+}
+
 /* 缓存管理 */
 .cache-search { margin-bottom: 12px; }
 .cache-actions { align-items: center; padding: 0 0 12px; flex-wrap: wrap; gap: 12px; }

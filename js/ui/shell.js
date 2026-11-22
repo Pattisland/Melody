@@ -322,7 +322,14 @@ export function mountShell() {
     }
     signature = next;
     const trackId = p.track ? p.track.id : '';
-    if (trackId !== lastTrackId) { lastTrackId = trackId; viewMode = 'cover'; }
+    if (trackId !== lastTrackId) {
+      lastTrackId = trackId;
+      viewMode = 'cover';
+      // 偏好里的「开始播放自动全屏」：切歌后自动展开播放器
+      if (trackId && Boolean((store.state.settings || {})['prefs.autoFull'])) {
+        setTimeout(() => setMode('full'), 0);
+      }
+    }
     renderDock();
     renderPlayer();
     syncModeState(p);

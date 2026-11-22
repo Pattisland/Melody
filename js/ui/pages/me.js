@@ -356,6 +356,7 @@ async function renderPrefs(root) {
     '<div class="group">' +
       '<div class="group__label">播放器</div>' +
       prefSwitch('prefs.blurBg', '模糊封面背景', '用当前封面的模糊图垫在全屏播放器后面', settings['prefs.blurBg'] !== false) +
+      prefSwitch('prefs.autoFull', '开始播放自动全屏', '选中歌曲后直接展开播放器，不用再点迷你条', Boolean(settings['prefs.autoFull'])) +
       prefSwitch('prefs.notifyCache', '完成提示', '缓存与下载结束时提示一条', settings['prefs.notifyCache'] !== false) +
     '</div>' +
     '<div class="group">' +

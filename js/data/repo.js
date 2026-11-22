@@ -21,6 +21,8 @@ export const DEFAULT_SETTINGS = {
   // 全局跟随封面取色：开着时整个应用（不只是播放器）跟着当前封面换主色
   'prefs.tintGlobal': false,
   'prefs.lyricsSource': '',
+  // 开始播放就自动展开全屏播放器（默认关）
+  'prefs.autoFull': false,
   'prefs.cacheConcurrency': 2,
   'prefs.pageGutter': 154,
 };

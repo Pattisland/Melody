@@ -1,9 +1,9 @@
 /* 播放引擎：单 audio 元素 + 队列 + 来源回退 */
 import { store } from '../core/store.js';
 import { resolveTrack, lyricsFor, artworkFor } from '../sources/registry.js';
-import { recordPlay, recordListen, updateListenMs } from '../data/repo.js';
+import { recordPlay, recordListen, updateListenMs, removeCache } from '../data/repo.js';
 import { parseLrc } from './lyrics.js';
-import { cacheGet } from './cache.js';
+import { cacheGet, looksLikeAudio } from './cache.js';
 
 const PLAY_MODES = ['off', 'all', 'one'];
 
@@ -86,6 +86,15 @@ class Player {
     });
     audio.addEventListener('ended', () => { this.stopListenClock(); this.handleEnded(); });
     audio.addEventListener('error', () => {
+      // 缓存文件坏了：删掉它并用网络重放一次，而不是一直卡在错误上
+      if (this._fromCache && this.track) {
+        const track = this.track;
+        this._fromCache = false;
+        removeCache(this.profileId, track.id).catch(() => {});
+        store.patch('player', { error: null, loading: true });
+        this.playTrack(track, { ignoreCache: true, queue: this.queue }).catch(() => {});
+        return;
+      }
       const code = audio.error ? audio.error.code : 0;
       const message = code === 4
         ? '这个来源取不到能播放的地址'
@@ -234,7 +243,13 @@ class Player {
     this._abort = new AbortController();
 
     try {
-      const cached = await cacheGet(this.profileId, track.id);
+      let cached = options.ignoreCache || options.forceSource ? null : await cacheGet(this.profileId, track.id);
+      // 旧版本可能把错误页存成了音频：发现不像音频就丢掉，改走网络
+      if (cached && !(await looksLikeAudio(cached))) {
+        removeCache(this.profileId, track.id).catch(() => {});
+        cached = null;
+      }
+      this._fromCache = Boolean(cached);
       if (!cached && typeof navigator !== 'undefined' && navigator.onLine === false) {
         store.patch('player', { error: '离线中，这首还没有缓存', loading: false, playing: false });
         return;
