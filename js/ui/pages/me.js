@@ -602,10 +602,39 @@ function renderAbout(root) {
       '<div class="t-body-m muted">在线音乐搜索 · 播放 · 收藏<br>纯静态，托管于 GitHub Pages</div>' +
     '</div>' +
     '<div class="group">' +
-      '<div class="list-item" style="cursor:default"><div class="list-item__body"><div class="list-item__title">数据存放</div><div class="list-item__sub">全部保存在你的浏览器（IndexedDB）</div></div></div>' +
-      '<div class="list-item" style="cursor:default"><div class="list-item__body"><div class="list-item__title">内容来源</div><div class="list-item__sub">应用不存储任何音频，播放与缓存均直连第三方公开接口</div></div></div>' +
-      '<div class="list-item" style="cursor:default"><div class="list-item__body"><div class="list-item__title">版本</div><div class="list-item__sub">0.1.0 · P1</div></div></div>' +
+      '<div class="group__label">关于这个应用</div>' +
+      '<div class="list-item" style="cursor:default"><div class="list-item__body">' +
+        '<div class="list-item__title">纯静态、零构建</div>' +
+        '<div class="list-item__sub">原生 ES Module + 手写 CSS，没有框架与打包步骤；托管在 GitHub Pages，用 hash 路由与相对路径，子路径也能跑</div></div></div>' +
+      '<div class="list-item" style="cursor:default"><div class="list-item__body">' +
+        '<div class="list-item__title">数据只在你的浏览器里</div>' +
+        '<div class="list-item__sub">档案、收藏、歌单、历史与缓存全部存在 IndexedDB，不上传任何服务器；换设备请用「数据管理 → 导出配置」</div></div></div>' +
+      '<div class="list-item" style="cursor:default"><div class="list-item__body">' +
+        '<div class="list-item__title">内容来源</div>' +
+        '<div class="list-item__sub">应用不存储也不分发音频，搜索与取流直连第三方公开接口；可否播放取决于对方可用性</div></div></div>' +
+    '</div>' +
+    '<div class="group">' +
+      '<div class="group__label">配色与排版</div>' +
+      '<div class="list-item" style="cursor:default"><div class="list-item__body">' +
+        '<div class="list-item__title">Material You</div>' +
+        '<div class="list-item__sub">用 Material Color Utilities 在本地计算 HCT 配色，三种变体；跟随系统深浅色，播放器可随封面取色</div></div></div>' +
+      '<div class="list-item" style="cursor:default"><div class="list-item__body">' +
+        '<div class="list-item__title">字体</div>' +
+        '<div class="list-item__sub">Roboto（本地打包，latin 子集）+ 系统中文字体栈，图标使用本地的 Material Icons Round</div></div></div>' +
+    '</div>' +
+    '<div class="group">' +
+      '<div class="group__label">版本</div>' +
+      '<div class="list-item" style="cursor:default"><div class="list-item__body">' +
+        '<div class="list-item__title">Melody 0.1.0</div>' +
+        '<div class="list-item__sub">P1–P3 已完成，P4（离线 / 动效 / 无障碍 / 性能）在收尾</div></div></div>' +
+      '<div class="list-item" data-act="about-links" role="button" tabindex="0">' +
+        '<div class="list-item__art list-item__art--icon">' + icon('public') + '</div>' +
+        '<div class="list-item__body"><div class="list-item__title">在线站点与仓库</div>' +
+        '<div class="list-item__sub">pattisland.github.io/Melody · github.com/Pattisland/Melody</div></div>' +
+        '<div class="list-item__trail">' + icon('open_in_new') + '</div></div>' +
     '</div>';
+  const repo = root.querySelector('[data-act="about-links"]');
+  if (repo) repo.addEventListener('click', () => window.open('https://github.com/Pattisland/Melody', '_blank', 'noopener'));
 }
 
 export const meRoutes = [

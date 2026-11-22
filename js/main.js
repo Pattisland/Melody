@@ -148,7 +148,22 @@ async function boot() {
   const localHost = location.hostname === '127.0.0.1' || location.hostname === 'localhost' || location.hostname === '';
   const forceSw = new URLSearchParams(location.search).has('sw');
   if ('serviceWorker' in navigator && location.protocol !== 'file:' && (!localHost || forceSw)) {
-    const register = () => navigator.serviceWorker.register('./sw.js').catch(() => {});
+    const register = () => navigator.serviceWorker.register('./sw.js').then((reg) => {
+      // 新版本装好后提示一次，点一下就刷新，不用自己按 Ctrl+Shift+R
+      reg.addEventListener('updatefound', () => {
+        const fresh = reg.installing;
+        if (!fresh) return;
+        fresh.addEventListener('statechange', () => {
+          if (fresh.state !== 'installed') return;
+          if (!navigator.serviceWorker.controller) return;
+          toast('Melody 已更新到新版本', {
+            actionLabel: '刷新',
+            timeout: 12000,
+            onAction: () => location.reload(),
+          });
+        });
+      });
+    }).catch(() => {});
     if (document.readyState === 'complete') register();
     else window.addEventListener('load', register, { once: true });
   }

@@ -44,7 +44,8 @@ self.addEventListener('fetch', (event) => {
   event.respondWith((async () => {
     const cache = await caches.open(CACHE);
     try {
-      const res = await fetch(req);
+      // 绕过浏览器 HTTP 缓存（GH Pages 有 10 分钟 max-age），只让 SW 缓存兜底
+      const res = await fetch(new Request(req, { cache: 'no-cache' }));
       if (res && res.ok) cache.put(req, res.clone());
       return res;
     } catch (err) {
