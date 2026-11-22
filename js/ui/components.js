@@ -317,6 +317,26 @@ export function openActionMenu(options = {}) {
   });
 
   bindMenuItems(menu, items, close, { onSubmenu: openSubmenu });
+
+  // 键盘可达：上下键在菜单项之间移动焦点，Home/End 跳到首尾
+  const focusables = Array.from(menu.querySelectorAll('.menu__item:not([aria-disabled="true"])'));
+  focusables.forEach((node, index) => { node.tabIndex = index === 0 ? 0 : -1; });
+  const focusAt = (index) => {
+    if (!focusables.length) return;
+    const next = (index + focusables.length) % focusables.length;
+    focusables.forEach((node, i) => { node.tabIndex = i === next ? 0 : -1; });
+    focusables[next].focus({ preventScroll: true });
+  };
+  if (focusables.length && document.activeElement && !menu.contains(document.activeElement)) {
+    requestAnimationFrame(() => { if (!closed) focusAt(0); });
+  }
+  menu.addEventListener('keydown', (event) => {
+    const current = focusables.indexOf(document.activeElement);
+    if (event.key === 'ArrowDown') { event.preventDefault(); focusAt(current + 1); }
+    else if (event.key === 'ArrowUp') { event.preventDefault(); focusAt(current < 0 ? -1 : current - 1); }
+    else if (event.key === 'Home') { event.preventDefault(); focusAt(0); }
+    else if (event.key === 'End') { event.preventDefault(); focusAt(focusables.length - 1); }
+  });
   return { close, element: menu };
 }
 
@@ -447,6 +467,14 @@ export function attachSongList(root, tracks, handlers = {}) {
   });
 
   list.addEventListener('keydown', (event) => {
+    // Shift+F10 / 菜单键：用键盘打开这一行的操作菜单（菜单里可上移/下移、加歌单等）
+    if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
+      const target = event.target.closest('[data-track-id]');
+      if (!target || !handlers.onMore) return;
+      event.preventDefault();
+      handlers.onMore(byId.get(target.dataset.trackId), target.querySelector('[data-more]'), event);
+      return;
+    }
     if (event.key !== 'Enter' && event.key !== ' ') return;
     const row = event.target.closest('[data-track-id]');
     if (!row) return;
