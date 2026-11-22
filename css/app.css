@@ -1245,8 +1245,8 @@ html.theme-transition *:not(.player):not(.sheet):not(.dialog):not(.menu--popover
 
 /* 歌词：整首平滑滑动，边缘淡出 */
 .player__lyrics { overflow: hidden; mask-image: linear-gradient(180deg, transparent 0, #000 18%, #000 82%, transparent 100%); -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 18%, #000 82%, transparent 100%); }
-.lyrics-track { display: flex; flex-direction: column; gap: 14px; will-change: transform; transition: transform 520ms cubic-bezier(.2, 0, 0, 1); }
-.player__lyrics .line { transition: opacity 420ms var(--ease-std), color 420ms var(--ease-std), transform 420ms var(--ease-emph); }
+.lyrics-track { display: flex; flex-direction: column; gap: 14px; will-change: transform; transition: transform var(--dur-7) var(--ease-emph-dec); }
+.player__lyrics .line { transition: opacity var(--dur-7) var(--ease-std), color var(--dur-7) var(--ease-std), transform var(--dur-7) var(--ease-emph); }
 
 
 /* 一级页面不再受最大宽度牵制，边距完全由 --gutter 决定 */
