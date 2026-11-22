@@ -9,6 +9,7 @@ import { songList, attachSongList, emptyState, toast, askText, openDialog } from
 import { coverMarkup } from '../cover.js';
 import { openTrackMenu } from '../track-menu.js';
 import { openTrackInfo } from '../track-info.js';
+import { onDataChange } from '../live.js';
 import { saveBlob } from '../../download/download.js';
 import { player } from '../../player/player.js';
 
@@ -23,13 +24,6 @@ function safeName(text) {
 
 function totalTime(tracks) {
   return fmtTime(tracks.reduce((sum, track) => sum + (track.duration || 0), 0));
-}
-
-/** 歌单详情跨页同步：菜单里增删/移动后通知当前页面刷新 */
-let playlistWatcher = null;
-function watchPlaylist(handler) {
-  if (playlistWatcher) { document.removeEventListener('playlist:changed', playlistWatcher); playlistWatcher = null; }
-  if (handler) { playlistWatcher = handler; document.addEventListener('playlist:changed', handler); }
 }
 
 async function renderLibrary(root) {
@@ -77,6 +71,7 @@ async function renderLibrary(root) {
   root.querySelectorAll('[data-list]').forEach((row) => {
     row.addEventListener('click', () => router.go('/library/p/' + row.dataset.list));
   });
+  onDataChange(root, () => router.render());
   const create = root.querySelector('[data-new-list]');
   create.addEventListener('click', async () => {
     const name = await askText({ title: '新建歌单', label: '歌单名称', placeholder: '例如：夜里开车', confirmText: '创建' });
@@ -129,7 +124,6 @@ function exportPlaylist(list, tracks) {
 }
 
 async function renderDetail(root, kind, playlistId) {
-  watchPlaylist(null);
   const profileId = store.state.profileId;
   let tracks = [];
   let title = '';
@@ -207,10 +201,7 @@ async function renderDetail(root, kind, playlistId) {
           ],
         });
       });
-      watchPlaylist((event) => {
-        if (event && event.detail && event.detail.playlistId && event.detail.playlistId !== playlistId) return;
-        rerender();
-      });
+      onDataChange(root, () => { if (root.isConnected) rerender(); }, { kinds: ['favorite', 'cache', 'playlist'] });
     }
   }
 

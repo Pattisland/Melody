@@ -373,6 +373,33 @@ export function attachSongList(root, tracks, handlers = {}) {
   const list = root.querySelector('[data-songlist]');
   if (!list) return;
 
+  // 当前播放高亮跟着播放器状态走，列表不用重渲染
+  const syncPlaying = () => {
+    if (!list.isConnected) { unsubscribe(); return; }
+    const currentId = store.state.player.track ? store.state.player.track.id : '';
+    list.querySelectorAll('[data-track-id]').forEach((row) => {
+      const on = row.dataset.trackId === currentId;
+      if (row.classList.contains('is-playing') === on) return;
+      row.classList.toggle('is-playing', on);
+      const title = row.querySelector('.list-item__title');
+      if (!title) return;
+      const dot = title.querySelector('.list-item__playing');
+      if (on && !dot) {
+        const span = document.createElement('span');
+        span.className = 'list-item__playing';
+        span.innerHTML = '<i></i><i></i><i></i>';
+        title.prepend(span);
+      } else if (!on && dot) {
+        dot.remove();
+      }
+    });
+  };
+  const unsubscribe = store.subscribe((state, changed) => {
+    if (!changed.includes('player')) return;
+    syncPlaying();
+  });
+  syncPlaying();
+
   list.addEventListener('click', (event) => {
     const row = event.target.closest('[data-track-id]');
     if (!row) return;

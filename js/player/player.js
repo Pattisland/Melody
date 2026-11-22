@@ -77,7 +77,14 @@ class Player {
     });
     audio.addEventListener('ended', () => { this.stopListenClock(); this.handleEnded(); });
     audio.addEventListener('error', () => {
-      const message = audio.error ? '播放失败（' + (audio.error.code || '?') + '）' : '播放失败';
+      const code = audio.error ? audio.error.code : 0;
+      const message = code === 4
+        ? '这个来源取不到能播放的地址'
+        : code === 3
+          ? '音源解码失败，换一个来源试试'
+          : code === 2
+            ? '网络中断，音频没下下来'
+            : '音频加载失败';
       store.patch('player', { error: message, playing: false, loading: false });
     });
     this.bindKeys();
@@ -195,6 +202,8 @@ class Player {
       const cached = await cacheGet(this.profileId, track.id);
       let url = '';
       let sourceKey = 'cache';
+      let sourceLabel = '本地缓存';
+      let fallback = false;
       if (cached) {
         url = URL.createObjectURL(cached);
         sourceKey = 'cache';
@@ -202,13 +211,21 @@ class Player {
         const resolved = await resolveTrack(track, this.settings, { signal: this._abort.signal });
         url = resolved.url;
         sourceKey = resolved.sourceKey;
+        sourceLabel = resolved.label || resolved.sourceKey;
+        fallback = (resolved.attempt || 0) > 0;
       }
       if (store.state.player.track !== track) return;
+      store.patch('player', { sourceKey, sourceLabel, fallback });
       this.audio.src = url;
       this.audio.load();
       await this.audio.play().catch((err) => {
-        if (err && err.name === 'NotAllowedError') store.patch('player', { error: '需要点击后才能播放', loading: false });
-        else if (err && err.name !== 'AbortError') store.patch('player', { error: err.message, loading: false });
+        if (!err || err.name === 'AbortError') return;
+        if (err.name === 'NotAllowedError') { store.patch('player', { error: '需要点击后才能播放', loading: false }); return; }
+        const unsupported = err.name === 'NotSupportedError' || /no supported source/i.test(err.message || '');
+        store.patch('player', {
+          error: unsupported ? '这个来源取不到能播放的地址' : (err.message || '播放失败'),
+          loading: false,
+        });
       });
       store.patch('player', { playing: true });
       this.loadLyrics(track);
@@ -216,6 +233,15 @@ class Player {
       if (err && err.name === 'AbortError') return;
       store.patch('player', { error: err.message || '取流失败', loading: false, playing: false });
     }
+  }
+
+  /** 换歌词源或重新拉一次歌词 */
+  async reloadLyrics(track) {
+    const target = track || this.track;
+    if (!target) return;
+    this.lyrics = { trackId: target.id, text: '', lines: [], loading: true, error: '' };
+    store.set({ player: { ...store.state.player } }, 'lyrics');
+    await this.loadLyrics(target);
   }
 
   async loadLyrics(track) {

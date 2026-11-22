@@ -16,7 +16,7 @@ let pageState = null;
 function emptyStateFor() {
   return {
     q: '', tracks: [], artists: [], albums: [], page: 1, isEnd: true,
-    tab: 'songs', filter: null, interacted: false, failed: [], loading: false, token: 0,
+    tab: 'songs', filter: null, interacted: false, failed: [], loading: false, token: 0, hints: [],
   };
 }
 
@@ -108,6 +108,36 @@ function tabsHTML() {
     icon(ico) + label + '</button>').join('') + '</div>';
 }
 
+/** 「您是否在找？」：历史搜索 + 本次结果里的歌手，用彩色文字链接排成一组 */
+function suggestionsHTML() {
+  if (!pageState) return '';
+  const seen = new Set([String(pageState.q || '').toLowerCase()]);
+  const terms = [];
+  const push = (value) => {
+    const text = String(value || '').trim();
+    if (!text || text.length > 24) return;
+    const key = text.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    terms.push(text);
+  };
+  (pageState.artists || []).slice(0, 6).forEach((artist) => push(artist.name));
+  (pageState.albums || []).slice(0, 4).forEach((album) => push(album.name));
+  (pageState.hints || []).forEach((row) => push(row.term));
+  if (terms.length < 3) return '';
+  return '<section class="lookalike" aria-label="您是否在找">' +
+    '<div class="lookalike__title">您是否在找？</div>' +
+    '<div class="lookalike__links">' + terms.slice(0, 14).map((term) =>
+      '<button class="lookalike__link" type="button" data-hint="' + esc(term) + '">' + esc(term) + '</button>').join('') +
+    '</div></section>';
+}
+
+function wireHints(body) {
+  body.querySelectorAll('[data-hint]').forEach((button) => {
+    button.addEventListener('click', () => router.go('/search', { query: { q: button.dataset.hint } }));
+  });
+}
+
 function renderResults(root) {
   const head = root.querySelector('[data-results-head]');
   const body = root.querySelector('[data-results-body]');
@@ -128,7 +158,9 @@ function renderResults(root) {
   });
 
   if (!pageState.tracks.length) {
-    body.innerHTML = emptyState('search_off', '没有找到「' + pageState.q + '」', pageState.failed.length ? '所有来源都不可用，稍后再试' : '换个关键词试试');
+    body.innerHTML = emptyState('search_off', '没有找到「' + pageState.q + '」', pageState.failed.length ? '所有来源都不可用，稍后再试' : '换个关键词试试') +
+      suggestionsHTML();
+    wireHints(body);
     return;
   }
 
@@ -184,7 +216,9 @@ function renderResults(root) {
   body.innerHTML = chip + songList(list, { playingId: store.state.player.track ? store.state.player.track.id : '' }) +
     (pageState.isEnd ? (list.length ? '<div class="state-hint">没有更多了</div>' : '') :
       '<div style="display:flex;justify-content:center;padding:16px 0"><button class="btn btn--outlined" data-more>' +
-      (pageState.loading ? '加载中…' : '加载更多') + '</button></div>');
+      (pageState.loading ? '加载中…' : '加载更多') + '</button></div>') +
+    suggestionsHTML();
+  wireHints(body);
 
   const clearFilter = body.querySelector('[data-clear-filter]');
   if (clearFilter) clearFilter.addEventListener('click', () => { pageState.filter = null; renderResults(root); });
@@ -279,6 +313,7 @@ export default {
     }
     pageState = emptyStateFor();
     pageState.q = q;
+    pageState.hints = store.state.profileId ? await listSearches(store.state.profileId, 12).catch(() => []) : [];
     resultsShell(root, q);
     await loadResults(root);
   },

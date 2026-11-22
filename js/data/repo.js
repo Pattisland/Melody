@@ -8,7 +8,8 @@ export const DEFAULT_SETTINGS = {
   'theme.variant': 'tonal',
   'theme.fromCover': false,
   'sources.order': ['gd-netease', 'qj-tencent', 'qj-kugou', 'qj-migu', 'audius'],
-  'sources.disabled': [],
+  // 酷狗的取流接口长期 403/CORS 失败，默认停用，用户可在设置里打开
+  'sources.disabled': ['qj-kugou'],
   'profile.active': null,
   'prefs.historyLimit': 300,
   'prefs.autoCache': false,
@@ -17,9 +18,23 @@ export const DEFAULT_SETTINGS = {
   'prefs.density': 'comfortable',
   'prefs.notifyCache': true,
   'prefs.playerTint': true,
+  // 全局跟随封面取色：开着时整个应用（不只是播放器）跟着当前封面换主色
+  'prefs.tintGlobal': false,
+  'prefs.lyricsSource': '',
   'prefs.cacheConcurrency': 2,
   'prefs.pageGutter': 154,
 };
+
+/**
+ * 数据变更广播：页面订阅后可以立即刷新，而不是等用户手动刷新。
+ * kind: favorite / cache / playlist / subscription / history / profile
+ */
+export function notifyData(kind, detail = {}) {
+  if (typeof document === 'undefined') return;
+  try {
+    document.dispatchEvent(new CustomEvent('melody:data', { detail: { kind, ...detail } }));
+  } catch (_) { /* 忽略 */ }
+}
 
 export async function loadSettings() {
   const rows = await idb.all('settings');
@@ -154,9 +169,11 @@ export async function toggleFavorite(profileId, track) {
   const existing = await idb.get('favorites', id);
   if (existing) {
     await idb.remove('favorites', id);
+    notifyData('favorite', { trackId: record.id, added: false });
     return false;
   }
   await idb.put('favorites', { id, profileId, trackId: record.id, track: record, addedAt: Date.now() });
+  notifyData('favorite', { trackId: record.id, added: true });
   return true;
 }
 
@@ -253,6 +270,7 @@ export async function listCached(profileId) {
 export async function removeCache(profileId, trackId) {
   await idb.remove('blobs', profileId + ':' + trackId);
   await idb.remove('cached', profileId + ':' + trackId);
+  notifyData('cache', { trackId });
 }
 
 export async function cacheStats(profileId) {
@@ -384,10 +402,14 @@ export async function addSubscription(profileId, artist) {
   if (existing) return existing;
   const row = { id, profileId, artist: name, addedAt: Date.now() };
   await idb.put('subscriptions', row);
+  notifyData('subscription', { artist: name });
   return row;
 }
 
-export async function removeSubscription(id) { await idb.remove('subscriptions', id); }
+export async function removeSubscription(id) {
+  await idb.remove('subscriptions', id);
+  notifyData('subscription');
+}
 
 export async function isSubscribed(profileId, artist) {
   if (!profileId || !artist) return false;
@@ -440,6 +462,7 @@ export async function updatePlaylist(id, patch) {
   if (!row) return null;
   const next = { ...row, ...patch, updatedAt: Date.now() };
   await idb.put('playlists', next);
+  notifyData('playlist', { playlistId: id });
   return next;
 }
 
@@ -447,6 +470,7 @@ export async function deletePlaylist(id) {
   const items = await idb.byIndex('playlistItems', 'playlistId', id);
   await idb.removeMany('playlistItems', items.map((row) => row.id));
   await idb.remove('playlists', id);
+  notifyData('playlist', { playlistId: id, deleted: true });
 }
 
 export async function addToPlaylist(playlistId, track) {
@@ -460,6 +484,7 @@ export async function addToPlaylist(playlistId, track) {
     id, playlistId, trackId: record.id, track: record,
     position: items.length, addedAt: Date.now(),
   });
+  notifyData('playlist', { playlistId });
   const list = await idb.get('playlists', playlistId);
   if (list) await idb.put('playlists', { ...list, updatedAt: Date.now() });
   return true;
@@ -483,9 +508,11 @@ export async function movePlaylistItem(playlistId, trackId, delta) {
   )));
   const list = await idb.get('playlists', playlistId);
   if (list) await idb.put('playlists', { ...list, updatedAt: Date.now() });
+  notifyData('playlist', { playlistId });
   return true;
 }
 
 export async function removeFromPlaylist(playlistId, trackId) {
   await idb.remove('playlistItems', playlistId + ':' + trackId);
+  notifyData('playlist', { playlistId });
 }

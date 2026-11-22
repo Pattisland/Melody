@@ -7,7 +7,7 @@ import {
   getProfile, updateProfile, listProfiles, createProfile, deleteProfile,
   saveSettings, saveSetting, ensureActiveProfile, cacheStats,
 } from '../../data/repo.js';
-import { SOURCES, DEFAULT_ORDER } from '../../sources/registry.js';
+import { SOURCES, DEFAULT_ORDER, sourceHealth } from '../../sources/registry.js';
 import * as idb from '../../data/db.js';
 import { mountTasks } from './tasks.js';
 import { saveBlob } from '../../download/download.js';
@@ -169,6 +169,7 @@ async function setTheme(patch) {
 
 async function renderTheme(root) {
   const theme = store.state.theme;
+  const settings = store.state.settings;
   root.innerHTML =
     '<div class="group">' +
       '<div class="group__label">外观</div>' +
@@ -200,12 +201,14 @@ async function renderTheme(root) {
     '</div>' +
     '<div class="group">' +
       '<div class="group__label">封面取色</div>' +
-      '<div class="list-item" style="cursor:default">' +
-        '<div class="list-item__body"><div class="list-item__title">播放器展开时全局跟随封面</div>' +
-        '<div class="list-item__sub">展开播放器会用封面主色重算整套配色，收起后恢复；开关在偏好设置里</div></div>' +
-        '<button class="btn btn--text btn--sm" data-goto-prefs>去设置</button>' +
-      '</div>' +
-      '<p class="t-body-s muted" style="padding:4px 20px 14px">封面需要允许跨源读取；网易云封面通常可以，QQ/酷狗偶尔取不到。</p>' +
+      prefSwitch('prefs.playerTint', '播放器跟随封面取色', '展开播放器时用封面主色重算整套配色，收起后恢复', settings['prefs.playerTint'] !== false) +
+      prefSwitch('prefs.tintGlobal', '全局跟随封面取色', '整个应用跟着当前封面换色（不只是播放器）；开启后播放器强制取色', Boolean(settings['prefs.tintGlobal'])) +
+      '<p class="t-body-s muted" style="padding:4px 20px 14px">封面没有取到主色时沿用上面的种子色。更多动作与外观选项在「偏好设置」。</p>' +
+      '<div class="list-item" data-goto-prefs role="button" tabindex="0">' +
+        '<div class="list-item__art list-item__art--icon">' + icon('tune') + '</div>' +
+        '<div class="list-item__body"><div class="list-item__title">偏好设置</div>' +
+        '<div class="list-item__sub">列表密度、动效、模糊背景、缓存并发</div></div>' +
+        '<div class="list-item__trail">' + icon('chevron_right') + '</div></div>' +
     '</div>';
 
   root.querySelectorAll('[data-mode] .segmented__item').forEach((button) => {
@@ -226,6 +229,12 @@ async function renderTheme(root) {
     setTheme({ seed: normalizeSeed(hexInput.value) });
     renderTheme(root);
   });
+  root.querySelectorAll('[data-pref]').forEach((input) => {
+    input.addEventListener('change', async () => {
+      await saveSettings({ [input.dataset.pref]: input.checked });
+      store.set({ settings: { ...store.state.settings, [input.dataset.pref]: input.checked } });
+    });
+  });
   const goPrefs = root.querySelector('[data-goto-prefs]');
   if (goPrefs) goPrefs.addEventListener('click', () => router.go('/me/prefs'));
 }
@@ -238,22 +247,34 @@ async function renderSources(root) {
   for (const source of SOURCES) if (!order.includes(source.key)) order.push(source.key);
   const disabled = new Set(settings['sources.disabled'] || []);
 
+  const healthText = (key) => {
+    const row = sourceHealth(key);
+    if (!row.ok && !row.fails) return '还没试过';
+    if (row.fails >= 3 && row.ok === 0) return '最近一直失败';
+    if (row.fails > row.ok) return '不太稳定';
+    return '正常';
+  };
+
   root.innerHTML =
     '<p class="t-body-m muted" style="padding:0 4px 12px">播放时按下面的顺序回退：某个来源解析失败就换下一个。关闭的来源既不会被搜索，也不会被用于播放。</p>' +
-    '<div class="list" data-source-list>' + order.map((key, index) => {
-      const source = SOURCES.find((s) => s.key === key);
-      if (!source) return '';
-      const off = disabled.has(key);
-      return '<div class="list-item" style="cursor:default" data-source="' + esc(key) + '">' +
-        '<div class="list-item__art list-item__art--icon" style="color:' + source.accent + '">' + icon('album') + '</div>' +
-        '<div class="list-item__body"><div class="list-item__title">' + esc(source.label) + (index === 0 ? ' <span class="t-label-s muted">首选</span>' : '') + '</div>' +
-        '<div class="list-item__sub">' + esc(source.key) + (off ? ' · 已停用' : '') + '</div></div>' +
-        '<div class="list-item__trail">' +
-          '<button class="icon-btn" data-up="' + esc(key) + '" aria-label="上移" ' + (index === 0 ? 'disabled' : '') + '>' + icon('arrow_upward', 'icon--20') + '</button>' +
-          '<button class="icon-btn" data-down="' + esc(key) + '" aria-label="下移" ' + (index === order.length - 1 ? 'disabled' : '') + '>' + icon('arrow_downward', 'icon--20') + '</button>' +
-          '<label class="switch"><input type="checkbox" data-toggle="' + esc(key) + '" ' + (off ? '' : 'checked') + '><span class="switch__track"></span><span class="switch__thumb"></span></label>' +
-        '</div></div>';
-    }).join('') + '</div>';
+    '<div class="group"><div class="group__label">来源顺序</div>' +
+      '<div class="list" data-source-list>' + order.map((key, index) => {
+        const source = SOURCES.find((s) => s.key === key);
+        if (!source) return '';
+        const off = disabled.has(key);
+        return '<div class="list-item source-row" style="cursor:default" data-source="' + esc(key) + '">' +
+          '<div class="list-item__art list-item__art--icon source-row__art" style="color:' + source.accent + '">' + icon('graphic_eq') + '</div>' +
+          '<div class="list-item__body"><div class="list-item__title">' + esc(source.label) +
+            (index === 0 && !off ? '<span class="chip chip--xs">首选</span>' : '') +
+            (off ? '<span class="chip chip--xs chip--muted">已停用</span>' : '') + '</div>' +
+          '<div class="list-item__sub">' + healthText(key) + ' · ' + esc(source.key) + '</div></div>' +
+          '<div class="list-item__trail source-row__actions">' +
+            '<button class="icon-btn" data-up="' + esc(key) + '" aria-label="上移" ' + (index === 0 ? 'disabled' : '') + '>' + icon('arrow_upward', 'icon--20') + '</button>' +
+            '<button class="icon-btn" data-down="' + esc(key) + '" aria-label="下移" ' + (index === order.length - 1 ? 'disabled' : '') + '>' + icon('arrow_downward', 'icon--20') + '</button>' +
+            '<label class="switch"><input type="checkbox" data-toggle="' + esc(key) + '" ' + (off ? '' : 'checked') + ' aria-label="启用 ' + esc(source.label) + '"><span class="switch__track"></span><span class="switch__thumb"></span></label>' +
+          '</div></div>';
+      }).join('') + '</div>' +
+    '</div>';
 
   async function persist(nextOrder, nextDisabled) {
     store.patch('sources', { order: nextOrder, disabled: nextDisabled });
@@ -303,11 +324,15 @@ async function renderPrefs(root) {
   root.innerHTML =
     '<div class="group">' +
       '<div class="group__label">播放器</div>' +
-      prefSwitch('prefs.playerTint', '播放器跟随封面取色', '控件主色用当前封面主色；没有封面时退回系统主题色', settings['prefs.playerTint'] !== false) +
       prefSwitch('prefs.blurBg', '模糊封面背景', '用当前封面的模糊图垫在全屏播放器后面', settings['prefs.blurBg'] !== false) +
       prefSwitch('prefs.notifyCache', '完成提示', '缓存与下载结束时提示一条', settings['prefs.notifyCache'] !== false) +
     '</div>' +
     '<div class="group">' +
+      '<div class="list-item" data-goto-theme role="button" tabindex="0">' +
+        '<div class="list-item__art list-item__art--icon">' + icon('palette') + '</div>' +
+        '<div class="list-item__body"><div class="list-item__title">配色与主题</div>' +
+        '<div class="list-item__sub">深色模式、配色方案、种子色、封面取色</div></div>' +
+        '<div class="list-item__trail">' + icon('chevron_right') + '</div></div>' +
       '<div class="group__label">外观</div>' +
       '<div class="list-item" style="cursor:default"><div class="list-item__body">' +
         '<div class="list-item__title">列表密度</div><div class="list-item__sub">紧凑会缩小行高与封面</div></div></div>' +
@@ -339,6 +364,8 @@ async function renderPrefs(root) {
   root.querySelectorAll('[data-density] .segmented__item').forEach((button) => {
     button.addEventListener('click', async () => { await set('prefs.density', button.dataset.value); renderPrefs(root); });
   });
+  const goTheme = root.querySelector('[data-goto-theme]');
+  if (goTheme) goTheme.addEventListener('click', () => router.go('/me/theme'));
   root.querySelectorAll('[data-concurrency] .segmented__item').forEach((button) => {
     button.addEventListener('click', async () => { await set('prefs.cacheConcurrency', Number(button.dataset.value)); renderPrefs(root); });
   });
@@ -384,7 +411,8 @@ async function renderData(root) {
         '<div class="list-item__trail">' + icon('chevron_right') + '</div></div>' +
     '</div>' +
     '<input type="file" accept="application/json,.json" hidden data-import-file>' +
-    '<div class="group">' +
+    '<div class="group group--danger">' +
+      '<div class="group__label">危险操作</div>' +
       '<div class="list-item" data-act="wipe" role="button" tabindex="0">' +
         '<div class="list-item__art list-item__art--icon" style="color:var(--md-sys-color-error)">' + icon('delete_forever') + '</div>' +
         '<div class="list-item__body"><div class="list-item__title" style="color:var(--md-sys-color-error)">清空全部数据</div>' +

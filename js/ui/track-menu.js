@@ -1,9 +1,9 @@
 /* 曲目操作菜单：移动端底部抽屉，桌面端贴着三点浮出 */
 import { openActionMenu, openSheet, toast, askText } from './components.js';
-import { esc, icon } from '../core/util.js';
+import { esc, icon, splitArtists } from '../core/util.js';
 import {
   isFavorite, toggleFavorite, listPlaylists, addToPlaylist, createPlaylist,
-  getCacheEntry, removeCache, isSubscribed, addSubscription, removeSubscription,
+  getCacheEntry, removeCache, isSubscribed, addSubscription, removeSubscription, listSubscriptions,
 } from '../data/repo.js';
 import { enqueue, taskOf } from '../player/queue.js';
 import { downloadTrack, saveLyrics } from '../download/download.js';
@@ -18,11 +18,48 @@ export async function openTrackMenu(track, options = {}) {
   if (!profileId) { toast('还没有档案'); return; }
   const rect = options.anchor && options.anchor.getBoundingClientRect ? options.anchor.getBoundingClientRect() : null;
   const point = options.point ? { x: options.point.clientX, y: options.point.clientY } : null;
-  const [favorited, cached, subscribed] = await Promise.all([
+  const artists = splitArtists(track.artist);
+  const [favorited, cached, subscribedFlags] = await Promise.all([
     isFavorite(profileId, track.id),
     getCacheEntry(profileId, track.id),
-    isSubscribed(profileId, String(track.artist || '').split(' / ')[0]),
+    Promise.all(artists.map((name) => isSubscribed(profileId, name))),
   ]);
+  const allSubscribed = artists.length > 0 && subscribedFlags.every(Boolean);
+
+  const toggleArtistSubscription = async (name, subscribed) => {
+    if (subscribed) {
+      const subs = (store.state.subscriptions || []);
+      const hit = subs.find((row) => row.artist === name);
+      await removeSubscription(hit ? hit.id : profileId + ':' + name.toLowerCase());
+      toast('已取消订阅「' + name + '」');
+    } else {
+      await addSubscription(profileId, name);
+      toast('已订阅「' + name + '」，首页会更新');
+    }
+  };
+
+  const downloadAudio = async (withLyrics) => {
+    if (!cached) {
+      const pending = taskOf(track.id);
+      if (!pending) await enqueue(track);
+      toast(pending ? '缓存进行中，完成后可在「任务进度」里下载' : '已加入缓存队列，完成后可在「任务进度」里下载');
+      return;
+    }
+    try {
+      await downloadTrack(profileId, track, { withLyrics });
+    } catch (err) {
+      toast('下载失败：' + err.message);
+    }
+  };
+
+  const saveLyricFile = async () => {
+    try {
+      await saveLyrics(track);
+      toast('歌词已保存为 .lrc');
+    } catch (err) {
+      toast(err && err.message === '没有找到歌词' ? '这首歌没有可用歌词' : '歌词下载失败：' + ((err && err.message) || '未知错误'));
+    }
+  };
 
   const items = [
     ...(options.extra || []),
@@ -37,33 +74,33 @@ export async function openTrackMenu(track, options = {}) {
       },
     },
     { icon: 'playlist_add', label: '加入歌单', submenu: () => playlistItems(track) },
-    ...(track.artist ? String(track.artist).split(' / ').map((name) => name.trim()).filter(Boolean).slice(0, 3).map((name) => ({
+    ...artists.slice(0, 3).map((name) => ({
       icon: 'person',
-      label: '查看歌手 · ' + name,
+      label: (artists.length > 1 ? '查看歌手 · ' : '查看歌手 · ') + name,
       onSelect: () => router.go('/artist/' + encodeURIComponent(name)),
-    })) : []),
+    })),
     ...(track.album ? [{
       icon: 'album',
       label: '查看专辑',
       onSelect: () => router.go('/album/' + encodeURIComponent(String(track.album))),
     }] : []),
-    {
-      icon: subscribed ? 'person_remove' : 'person_add',
-      label: subscribed ? '取消订阅这位歌手' : '订阅这位歌手',
-      onSelect: async () => {
-        const artist = String(track.artist || '').split(' / ')[0];
-        if (!artist) { toast('这位曲目没有歌手信息'); return; }
-        if (subscribed) {
-          const subs = (store.state.subscriptions || []);
-          const hit = subs.find((row) => row.artist === artist);
-          await removeSubscription(hit ? hit.id : profileId + ':' + artist.toLowerCase());
-          toast('已取消订阅「' + artist + '」');
-        } else {
-          await addSubscription(profileId, artist);
-          toast('已订阅「' + artist + '」，首页会更新');
+    artists.length > 1
+      ? {
+        icon: allSubscribed ? 'person_remove' : 'person_add',
+        label: '订阅歌手 · ' + artists.length + ' 位',
+        submenu: () => artists.map((name, index) => ({
+          icon: subscribedFlags[index] ? 'check_circle' : 'radio_button_unchecked',
+          label: (subscribedFlags[index] ? '取消订阅 · ' : '订阅 · ') + name,
+          onSelect: () => toggleArtistSubscription(name, subscribedFlags[index]),
+        })),
+      }
+      : artists.length === 1
+        ? {
+          icon: subscribedFlags[0] ? 'person_remove' : 'person_add',
+          label: subscribedFlags[0] ? '取消订阅这位歌手' : '订阅这位歌手',
+          onSelect: () => toggleArtistSubscription(artists[0], subscribedFlags[0]),
         }
-      },
-    },
+        : null,
     {
       icon: cached ? 'download_done' : 'download',
       label: cached ? '重新缓存' : '加入缓存队列',
@@ -76,31 +113,13 @@ export async function openTrackMenu(track, options = {}) {
       },
     },
     {
-      icon: 'save_alt',
-      label: '下载到设备',
-      hint: cached ? '' : '未缓存，会先加入队列',
-      onSelect: async () => {
-        if (!cached) {
-          const pending = taskOf(track.id);
-          if (!pending) await enqueue(track);
-          toast(pending ? '缓存进行中，完成后可在「任务进度」里下载' : '已加入缓存队列，完成后可在「任务进度」里下载');
-          return;
-        }
-        try { await downloadTrack(profileId, track); } catch (err) { toast('下载失败：' + err.message); }
-      },
-    },
-    {
-      icon: 'subtitles',
-      label: '下载歌词',
-      hint: 'LRC 文件',
-      onSelect: async () => {
-        try {
-          await saveLyrics(track);
-          toast('歌词已保存为 .lrc');
-        } catch (err) {
-          toast(err && err.message === '没有找到歌词' ? '这首歌没有可用歌词' : '歌词下载失败：' + ((err && err.message) || '未知错误'));
-        }
-      },
+      icon: 'download',
+      label: '下载',
+      submenu: async () => [
+        { icon: 'save_alt', label: '下载歌曲', onSelect: () => downloadAudio(false) },
+        { icon: 'subtitles', label: '下载歌词', onSelect: () => saveLyricFile() },
+        { icon: 'download_for_offline', label: '下载歌词和歌曲', onSelect: () => { saveLyricFile(); downloadAudio(true); } },
+      ],
     },
     cached ? {
       icon: 'delete',

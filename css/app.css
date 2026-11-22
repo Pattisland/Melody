@@ -1354,3 +1354,85 @@ html.theme-transition *:not(.player):not(.sheet):not(.dialog):not(.menu--popover
 .qlist__tag { flex: 0 0 auto; font-size: var(--ts-label-small-size); color: var(--md-sys-color-primary); padding-right: 6px; }
 .qlist__remove { flex: 0 0 auto; }
 .qlist__empty { padding: 16px 4px; color: var(--md-sys-color-on-surface-variant); font-size: var(--ts-body-medium-size); }
+
+
+/* 迷你条取源反馈：加载中给出明显的流动条与文案 */
+.dock__artist.is-loading { color: var(--md-sys-color-primary); }
+.dock__artist.is-error { color: var(--md-sys-color-error); }
+.dock__inner.is-loading .dock__progress span { width: 40% !important; animation: dockLoad 1.15s var(--ease-std) infinite; }
+@keyframes dockLoad { from { transform: translateX(-70%); } to { transform: translateX(270%); } }
+
+/* 播放器里的来源行 */
+.player__source { margin-top: 6px; min-height: 1.1em; font-size: var(--ts-label-medium-size); color: var(--md-sys-color-on-surface-variant); }
+.player__source.is-error { color: var(--md-sys-color-error); }
+
+/* 边距手柄：只覆盖内容列中部，不压住迷你条与播放按钮 */
+@media (min-width: 840px) {
+  .gutter-handle { top: 56px; bottom: calc(104px + var(--safe-b)); z-index: 24; }
+}
+
+/* 播放队列浮窗（桌面贴按钮） */
+.queue-popover {
+  position: fixed; z-index: 260;
+  width: min(380px, calc(100vw - 32px));
+  max-height: min(72vh, 560px);
+  display: flex; flex-direction: column;
+  padding: 6px 8px 8px;
+  background: var(--md-sys-color-surface-container);
+  border-radius: var(--shape-md);
+  box-shadow: var(--elev-3);
+  opacity: 0; transform: scale(.96); transform-origin: top right;
+  transition: opacity var(--dur-3) var(--ease-std), transform var(--dur-4) var(--ease-emph);
+}
+.queue-popover.is-open { opacity: 1; transform: none; }
+.queue-popover.is-up { transform-origin: bottom right; }
+.queue-popover__head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 2px 2px 4px 12px; font-size: var(--ts-title-small-size); font-weight: 600;
+}
+.queue-popover [data-qlist] { min-height: 0; overflow-y: auto; }
+.qlist__modes { display: flex; gap: 8px; padding: 2px 4px 8px; flex-wrap: wrap; }
+.qlist__mode { height: 32px; }
+
+/* 专辑详情头：封面取第一首 */
+.album-head { display: flex; gap: 16px; align-items: center; padding: 0 4px 16px; }
+.album-head__art {
+  position: relative; width: 96px; height: 96px; flex: 0 0 auto;
+  border-radius: var(--shape-lg); overflow: hidden;
+  display: grid; place-items: center;
+  background: var(--md-sys-color-surface-container-high);
+  color: var(--md-sys-color-on-surface-variant);
+}
+.album-head__art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.album-head__name { font-size: var(--ts-headline-small-size); font-weight: 700; }
+.album-head__meta { margin-top: 4px; font-size: var(--ts-body-small-size); color: var(--md-sys-color-on-surface-variant); }
+
+/* 设置：来源行、小标签、危险区 */
+.source-row__art { color: var(--md-sys-color-primary); }
+.source-row__actions { display: flex; align-items: center; gap: 2px; }
+.chip--xs { height: 20px; padding: 0 8px; font-size: var(--ts-label-small-size); margin-left: 8px; }
+.chip--muted { background: var(--md-sys-color-surface-container-highest); color: var(--md-sys-color-on-surface-variant); }
+.group--danger { margin-top: 28px; }
+.group--danger .group__label { color: var(--md-sys-color-error); }
+
+/* 搜索页「您是否在找？」：半透明底 + 彩色文字链接 */
+.lookalike {
+  margin: 18px 0 10px;
+  padding: 16px 18px 12px;
+  border-radius: var(--shape-lg);
+  background: color-mix(in srgb, var(--md-sys-color-surface-container-high) 72%, transparent);
+}
+.lookalike__title { font-size: var(--ts-title-small-size); font-weight: 600; color: var(--md-sys-color-on-surface); margin-bottom: 6px; }
+.lookalike__links { display: flex; flex-wrap: wrap; gap: 2px 18px; }
+.lookalike__link {
+  border: 0; background: none; padding: 4px 0; cursor: pointer;
+  font-family: inherit; font-size: var(--ts-body-medium-size);
+  color: var(--md-sys-color-primary);
+}
+.lookalike__link:hover { text-decoration: underline; }
+
+/* 首页卡片底部渐隐，滚动时不会露出下一行的硬边 */
+.home-card__scroll {
+  mask-image: linear-gradient(180deg, #000 calc(100% - 22px), transparent 100%);
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 22px), transparent 100%);
+}

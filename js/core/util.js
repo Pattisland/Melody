@@ -74,6 +74,23 @@ export function normalizeArtist(artist) {
   return widthFold(first).toLowerCase().replace(/[\s\-_.,!?·]/g, '').trim();
 }
 
+/** 多歌手拆分：/ 、 & , ; + feat. ft. with 等分隔，返回去重后的名字数组 */
+export function splitArtists(artist) {
+  const raw = Array.isArray(artist) ? artist.join(' / ') : String(artist || '');
+  const parts = raw.split(/\s*(?:\/|、|&|,|;|\+|\bfeat\.?\b|\bft\.?\b|\bwith\b)\s*/i)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const seen = new Set();
+  const out = [];
+  for (const part of parts) {
+    const key = part.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(part);
+  }
+  return out;
+}
+
 export function hash32(input) {
   let h = 0x811c9dc5;
   const s = String(input);

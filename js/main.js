@@ -28,7 +28,9 @@ async function syncPlayerTint() {
   const settings = store.state.settings || {};
   const track = p.track;
   const enabled = settings['prefs.playerTint'] !== false;
-  const should = p.mode === 'full' && enabled && track && artworkCandidates(track, 200).length;
+  const globalTint = Boolean(settings['prefs.tintGlobal']);
+  // 全局取色开着时整个应用跟着封面走；否则只在播放器展开时取色
+  const should = Boolean(track && artworkCandidates(track, 200).length && (globalTint || (p.mode === 'full' && enabled)));
   if (!should) {
     if (tintActive) {
       tintActive = false;

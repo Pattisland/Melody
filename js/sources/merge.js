@@ -1,5 +1,5 @@
 /* 跨源合并：同歌名+同歌手视为同一首，来源挂成多路 */
-import { normalizeArtist, textOf } from '../core/util.js';
+import { normalizeArtist, splitArtists, textOf } from '../core/util.js';
 
 /**
  * @param {Array<{source: any, items: any[]}>} batches
@@ -35,7 +35,7 @@ export function groupAlbums(tracks) {
     const key = name.toLowerCase();
     let entry = map.get(key);
     if (!entry) {
-      entry = { name, artist: String(track.artist || '').split(' / ')[0], count: 0, track, tracks: [] };
+      entry = { name, artist: splitArtists(track.artist)[0] || '', count: 0, track, tracks: [] };
       map.set(key, entry);
     }
     entry.count += 1;
@@ -50,7 +50,7 @@ export function groupArtists(tracks, query) {
   const q = String(query || '').toLowerCase().replace(/\s+/g, '');
   const map = new Map();
   for (const track of tracks) {
-    const raw = String(track.artist || '').split(/\s*\/\s*/)[0] || '';
+    const raw = splitArtists(track.artist)[0] || '';
     if (!raw) continue;
     const key = normalizeArtist(raw);
     if (!key) continue;

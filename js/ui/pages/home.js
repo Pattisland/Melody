@@ -80,6 +80,12 @@ function topBlock(rows, range) {
 
 const albumIndex = new Map();
 
+/** 首页曲目索引：推荐、订阅、常听共用，点击时按 id 找回完整曲目 */
+function trackIndexSet(track) {
+  if (!window.__melodyHomeTracks || !(window.__melodyHomeTracks instanceof Map)) window.__melodyHomeTracks = new Map();
+  window.__melodyHomeTracks.set(track.id, track);
+}
+
 /* 桌面端：按板块可用宽高算出列数，让正方形封面正好铺满整行 */
 let gridHosts = [];
 let gridObserver = null;
@@ -103,9 +109,18 @@ function layoutTileGrids() {
       host.style.setProperty('--tile', Math.max(96, Math.min(210, availH - 74)) + 'px');
       return;
     }
+    // 74px 留给标题与副标题；列宽不能超过这个上限，否则文字会被卡片裁掉。
+    // 在「不超过上限」的前提下取最大的列宽，同时保证一行正好铺满。
     const maxSide = Math.max(88, Math.min(320, availH - 74));
-    const cols = Math.max(1, Math.floor((availW + gap) / (maxSide + gap)));
-    const colWidth = Math.floor((availW - (cols - 1) * gap) / cols);
+    let cols = 1;
+    let colWidth = availW;
+    for (let count = 1; count <= 12; count += 1) {
+      const width = Math.floor((availW - (count - 1) * gap) / count);
+      if (width < 88) break;
+      cols = count;
+      colWidth = width;
+      if (width <= maxSide) break;
+    }
     grid.style.gridTemplateColumns = 'repeat(' + cols + ', minmax(0, 1fr))';
     grid.style.setProperty('--tile', colWidth + 'px');
   });
@@ -141,14 +156,19 @@ function subBlock(subs, feeds) {
   albumIndex.clear();
   return subs.slice(0, 3).map((row) => {
     const feed = feeds.get(row.artist);
+    // 有的来源（QQ/咪咕/酷狗）不返回专辑字段，这时退回按曲目展示，
+    // 至少保证一排封面 + 名称，而不是一句「暂时没有新专辑」
     const body = !feed
       ? '<div class="state-hint">正在搜索「' + esc(row.artist) + '」…</div>'
       : feed.error
         ? '<div class="state-hint">没有拿到结果：' + esc(feed.error) + '</div>'
         : feed.albums && feed.albums.length
           ? albumGrid(feed.albums.slice(0, 6))
-          : '<div class="state-hint">暂时没有新专辑</div>';
+          : feed.tracks && feed.tracks.length
+            ? tileGrid(feed.tracks.slice(0, 8))
+            : '<div class="state-hint">暂时没有新专辑</div>';
     if (feed && feed.albums) feed.albums.forEach((album) => albumIndex.set(album.name.toLowerCase(), album));
+    if (feed && feed.tracks) feed.tracks.forEach((track) => { trackIndexSet(track); });
     return '<div class="sub-artist" data-artist="' + esc(row.artist) + '">' +
       '<div class="sub-artist__head"><span class="sub-artist__name">' + esc(row.artist) + '</span>' +
       '<span class="sub-artist__meta">订阅中</span></div>' + body + '</div>';
@@ -183,6 +203,7 @@ async function loadFeeds(profileId, subs, host) {
     if (block) {
       block.innerHTML = subBlock(subs, subFeed);
       wireTiles(block);
+      requestAnimationFrame(layoutTileGrids);
     }
   }
 }
@@ -275,6 +296,7 @@ async function mountHome(root) {
     const rows = await topTracks(profileId, button.dataset.rangeKey, 5);
     root.querySelector('[data-top]').innerHTML = topBlock(rows, button.dataset.rangeKey);
     wireTiles(root);
+    requestAnimationFrame(layoutTileGrids);
   });
 
   root.querySelector('[data-refresh]').addEventListener('click', async () => {
@@ -283,6 +305,8 @@ async function mountHome(root) {
     host.innerHTML = next.length ? tileGrid(next) : emptyState('auto_awesome', '曲库还空着', '收藏或缓存一些歌，这里就会开始推荐');
     next.forEach((track) => trackIndex.set(track.id, track));
     wireTiles(host);
+    // 换一批之后新建的网格没有列宽，必须重新算一遍，否则排版会塌
+    requestAnimationFrame(layoutTileGrids);
     const button = root.querySelector('[data-refresh]');
     button.classList.add('is-spinning');
     setTimeout(() => button.classList.remove('is-spinning'), 600);
@@ -298,6 +322,9 @@ async function mountHome(root) {
   });
 
   wireTiles(root);
+  // 封面与字体解析完之后再排一次，避免首屏算到错误的可用高度
+  requestAnimationFrame(layoutTileGrids);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => layoutTileGrids()).catch(() => {});
   loadFeeds(profileId, subs, root);
 }
 

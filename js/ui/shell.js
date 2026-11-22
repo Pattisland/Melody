@@ -6,7 +6,10 @@ import { activeLineIndex } from '../player/lyrics.js';
 import { coverSources } from './cover.js';
 import { openTrackMenu } from './track-menu.js';
 import { openQueuePanel } from './queue-panel.js';
-import { isFavorite, toggleFavorite, saveSetting } from '../data/repo.js';
+import { openActionMenu, toast } from './components.js';
+import { lyricSources } from '../sources/registry.js';
+import { saveLyrics } from '../download/download.js';
+import { isFavorite, toggleFavorite, saveSetting, saveSettings } from '../data/repo.js';
 
 let els = {};
 let viewMode = 'cover';
@@ -38,13 +41,15 @@ function renderDock() {
   const track = state.track;
   const artList = coverSources(track, 120);
   const art = artList[0] || '';
+  const status = state.error ? state.error : (state.loading ? '正在获取音源…' : '');
   dock.innerHTML =
-    '<div class="dock__inner" data-dock-open role="button" tabindex="0" aria-label="展开播放器">' +
+    '<div class="dock__inner' + (!state.error && state.loading ? ' is-loading' : '') + '" data-dock-open role="button" tabindex="0" aria-label="展开播放器">' +
       '<div class="dock__progress"><span style="width:' + (state.duration ? (state.current / state.duration) * 100 : 0) + '%"></span></div>' +
       '<div class="dock__art">' + icon('music_note') +
         (art ? '<img data-cover data-src="' + esc(art) + '" data-fallbacks="' + esc(artList.slice(1).join('|')) + '" decoding="async" referrerpolicy="no-referrer" alt="">' : '') + '</div>' +
       '<div class="dock__body"><div class="dock__title">' + esc(track.title) + '</div>' +
-      '<div class="dock__artist">' + esc(track.artist || '未知歌手') + '</div></div>' +
+      '<div class="dock__artist' + (state.error ? ' is-error' : state.loading ? ' is-loading' : '') + '">' + esc(status || track.artist || '未知歌手') + '</div></div>' +
+      '<button class="icon-btn" data-dock-queue aria-label="播放队列">' + icon('queue_music') + '</button>' +
       '<button class="icon-btn" data-dock-toggle aria-label="' + (state.playing ? '暂停' : '播放') + '">' + icon(state.playing ? 'pause' : 'play_arrow') + '</button>' +
       '<button class="icon-btn" data-dock-next aria-label="下一首">' + icon('skip_next') + '</button>' +
     '</div>';
@@ -125,7 +130,8 @@ function renderPlayer() {
         '</div></div>' +
       '</div>' +
       '<div class="player__meta"><div class="player__title">' + esc(track.title) + '</div>' +
-        '<div class="player__artist">' + esc(track.artist || '未知歌手') + '</div>' +
+        '<div class="player__artist" data-artist>' + esc(track.artist || '未知歌手') + '</div>' +
+        '<div class="player__source" data-source></div>' +
         '<button class="icon-btn player__fav" data-fav aria-label="收藏" aria-pressed="false">' + icon('favorite_border') + '</button>' +
       '</div>' +
       '<div class="player__seek">' +
@@ -157,10 +163,11 @@ function renderPlayer() {
   node.querySelector('[data-toggle]').addEventListener('click', () => player.toggle());
   node.querySelector('[data-next]').addEventListener('click', () => player.next());
   node.querySelector('[data-prev]').addEventListener('click', () => player.prev());
-  node.querySelector('[data-shuffle]').addEventListener('click', () => { player.toggleShuffle(); renderPlayer(); });
-  node.querySelector('[data-repeat]').addEventListener('click', () => { player.cycleRepeat(); renderPlayer(); });
+  // 循环/随机只更新按钮状态，不重建播放器（重建会闪一下）
+  node.querySelector('[data-shuffle]').addEventListener('click', () => { player.toggleShuffle(); syncModeState(store.state.player); });
+  node.querySelector('[data-repeat]').addEventListener('click', () => { player.cycleRepeat(); syncModeState(store.state.player); });
   node.querySelector('[data-more]').addEventListener('click', (event) => openTrackMenu(track, { anchor: event.currentTarget }));
-  node.querySelector('[data-queue]').addEventListener('click', () => openQueuePanel());
+  node.querySelector('[data-queue]').addEventListener('click', (event) => openQueuePanel({ anchor: event.currentTarget }));
   node.querySelectorAll('[data-view]').forEach((button) => {
     button.addEventListener('click', () => { viewMode = button.dataset.view; renderPlayer(); });
   });
@@ -181,11 +188,10 @@ function renderPlayer() {
 }
 
 function setMode(mode) {
+  // 只改状态，渲染交给 store 订阅，避免同一帧里重建两次（会闪、也会清掉状态文案）
   player.setMode(mode);
   if (mode === 'mini') document.body.removeAttribute('data-player');
   else document.body.dataset.player = 'open';
-  renderPlayer();
-  renderDock();
 }
 
 function updateProgress() {
@@ -228,6 +234,37 @@ export function mountShell() {
   let lastTrackId = '';
   let lastPlaying = null;
 
+  // 循环 / 随机 / 暂停这类状态只改按钮，不重建播放器
+  const syncModeState = (p) => {
+    const repeat = document.querySelector('#player [data-repeat] .icon');
+    if (repeat) repeat.textContent = modeIcon(p.repeat);
+    const repeatBtn = document.querySelector('#player [data-repeat]');
+    if (repeatBtn) repeatBtn.setAttribute('aria-label', '循环模式：' + (p.repeat === 'one' ? '单曲' : p.repeat === 'all' ? '列表' : '关闭'));
+    const shuffle = document.querySelector('#player [data-shuffle]');
+    if (shuffle) shuffle.setAttribute('aria-pressed', String(Boolean(p.shuffle)));
+  };
+
+  // 取源进度与来源信息：迷你条和播放器都给出可见反馈
+  const syncStatus = (p) => {
+    const dockArtist = document.querySelector('#dock .dock__artist');
+    if (dockArtist) {
+      const base = p.track ? (p.track.artist || '未知歌手') : '';
+      dockArtist.textContent = p.error ? p.error : p.loading ? '正在获取音源…' : base;
+      dockArtist.classList.toggle('is-loading', !p.error && Boolean(p.loading));
+      dockArtist.classList.toggle('is-error', Boolean(p.error));
+    }
+    const dockInner = document.querySelector('#dock .dock__inner');
+    if (dockInner) dockInner.classList.toggle('is-loading', !p.error && Boolean(p.loading));
+    const source = document.querySelector('#player [data-source]');
+    if (source) {
+      if (p.error) source.textContent = '播放失败：' + p.error;
+      else if (p.loading) source.textContent = '正在获取音源…';
+      else if (p.sourceLabel) source.textContent = '来源 · ' + p.sourceLabel + (p.fallback ? '（备用）' : '');
+      else source.textContent = '';
+      source.classList.toggle('is-error', Boolean(p.error));
+    }
+  };
+
   // 播放/暂停只换图标，不重建任何 DOM（否则封面会闪一下）
   const syncPlayState = (p) => {
     const glyphName = p.playing ? 'pause' : 'play_arrow';
@@ -246,12 +283,14 @@ export function mountShell() {
     const next = [
       p.track ? p.track.id : '',
       p.track ? p.track.title : '',
-      p.mode, p.error, p.repeat, p.shuffle,
+      p.mode,
     ].join('|');
     const playingChanged = p.playing !== lastPlaying;
     lastPlaying = p.playing;
     if (next === signature) {
       if (playingChanged) syncPlayState(p);
+      syncModeState(p);
+      syncStatus(p);
       updateProgress();
       return;
     }
@@ -260,7 +299,20 @@ export function mountShell() {
     if (trackId !== lastTrackId) { lastTrackId = trackId; viewMode = 'cover'; }
     renderDock();
     renderPlayer();
+    syncModeState(p);
+    syncStatus(p);
     updateProgress();
+  });
+
+  // 备用来源提示：换到别的来源时明确说一句，不然像是糊里糊涂在播
+  let lastSourceNote = '';
+  store.subscribe((state, changed) => {
+    if (!changed.includes('player')) return;
+    const p = state.player;
+    const note = (p.track ? p.track.id : '') + '|' + (p.sourceLabel || '');
+    if (note === lastSourceNote) return;
+    lastSourceNote = note;
+    if (p.fallback && p.sourceLabel && !p.error) toast('已换用备用来源 · ' + p.sourceLabel);
   });
 
   store.subscribe((state, changed) => {
@@ -271,15 +323,108 @@ export function mountShell() {
     if (!store.state.player.track) return;
     if (event.target.closest('[data-dock-toggle]')) { player.toggle(); return; }
     if (event.target.closest('[data-dock-next]')) { player.next(); return; }
+    const queueButton = event.target.closest('[data-dock-queue]');
+    if (queueButton) { openQueuePanel({ anchor: queueButton }); return; }
     if (event.target.closest('[data-dock-open]')) setMode('full');
   });
+
+  // 歌词区域：右键 / 长按弹菜单（换歌词源、复制、下载）
+  const openLyricsMenu = (x, y) => {
+    const track = store.state.player.track;
+    if (!track) return;
+    const settings = store.state.settings || {};
+    const preferred = settings['prefs.lyricsSource'] || '';
+    const sources = lyricSources(track, settings);
+    const items = [
+      {
+        icon: 'lyrics',
+        label: '更换歌词源',
+        submenu: () => [
+          {
+            icon: preferred ? 'check_circle' : 'radio_button_unchecked',
+            label: '自动（按来源顺序）',
+            onSelect: () => applyLyricsSource(''),
+          },
+          ...sources.map((item) => ({
+            icon: item.adapter.key === preferred ? 'check_circle' : 'radio_button_unchecked',
+            label: item.adapter.label,
+            onSelect: () => applyLyricsSource(item.adapter.key),
+          })),
+        ],
+      },
+      {
+        icon: 'content_copy',
+        label: '复制歌词',
+        onSelect: async () => {
+          const text = (player.lyrics && player.lyrics.text) || '';
+          if (!text.trim()) { toast('还没有歌词可以复制'); return; }
+          try {
+            await navigator.clipboard.writeText(text);
+            toast('歌词已复制');
+          } catch (_) {
+            toast('复制失败，浏览器不允许访问剪贴板');
+          }
+        },
+      },
+      {
+        icon: 'save_alt',
+        label: '下载歌词文件',
+        onSelect: async () => {
+          try {
+            await saveLyrics(track);
+            toast('歌词已保存为 .lrc');
+          } catch (err) {
+            toast(err && err.message === '没有找到歌词' ? '这首歌没有可用歌词' : '歌词下载失败');
+          }
+        },
+      },
+    ];
+    openActionMenu({ title: '歌词', items, point: { x, y } });
+  };
+
+  const applyLyricsSource = async (key) => {
+    const track = store.state.player.track;
+    await saveSettings({ 'prefs.lyricsSource': key });
+    store.set({ settings: { ...store.state.settings, 'prefs.lyricsSource': key } });
+    toast(key ? '歌词源已切换' : '歌词源已改为自动');
+    if (track) player.reloadLyrics(track);
+  };
+
+  els.player.addEventListener('contextmenu', (event) => {
+    if (!event.target.closest('[data-lyrics]')) return;
+    event.preventDefault();
+    openLyricsMenu(event.clientX, event.clientY);
+  });
+
+  let pressTimer = 0;
+  let pressStart = null;
+  els.player.addEventListener('pointerdown', (event) => {
+    if (event.pointerType === 'mouse') return;
+    if (!event.target.closest('[data-lyrics]')) return;
+    pressStart = { x: event.clientX, y: event.clientY };
+    clearTimeout(pressTimer);
+    pressTimer = setTimeout(() => {
+      openLyricsMenu(pressStart.x, pressStart.y);
+      pressStart = null;
+    }, 550);
+  });
+  const cancelPress = (event) => {
+    if (!pressStart) return;
+    if (event.type === 'pointermove' && Math.hypot(event.clientX - pressStart.x, event.clientY - pressStart.y) < 10) return;
+    clearTimeout(pressTimer);
+    pressStart = null;
+  };
+  els.player.addEventListener('pointerup', cancelPress);
+  els.player.addEventListener('pointercancel', cancelPress);
+  els.player.addEventListener('pointermove', cancelPress);
 
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && store.state.player.mode === 'full') setMode('mini');
   });
 
-  // 桌面端：拖动左右边缘调整页面边距（写入 --gutter，并持久化）
-  if (window.matchMedia('(min-width: 840px)').matches) {
+  // 左右边缘拖动调整页面边距：手柄常驻，是否可见由 CSS 决定，
+  // 这样平板横屏等强制桌面布局的情况也能拖（竖屏手机仍无手柄）。
+  {
     let latest = null;
     ['left', 'right'].forEach((side) => {
       const handle = document.createElement('div');
@@ -288,6 +433,7 @@ export function mountShell() {
       handle.setAttribute('aria-hidden', 'true');
       document.body.appendChild(handle);
       handle.addEventListener('pointerdown', (event) => {
+        if (!window.matchMedia('(min-width: 840px)').matches) return;
         event.preventDefault();
         handle.classList.add('is-drag');
         const startX = event.clientX;

@@ -1,8 +1,9 @@
 /* 歌手 / 专辑详情页：按名字再搜一次，筛出对应曲目 */
-import { esc } from '../../core/util.js';
+import { esc, icon } from '../../core/util.js';
 import { store } from '../../core/store.js';
 import { searchAll } from '../../sources/registry.js';
 import { songList, attachSongList, emptyState } from '../components.js';
+import { coverMarkup } from '../cover.js';
 import { openTrackMenu } from '../track-menu.js';
 import { player } from '../../player/player.js';
 
@@ -33,7 +34,22 @@ async function renderCollection(root, ctx, kind) {
     if (status) status.outerHTML = emptyState('search_off', '没有找到', '换个关键词试试');
     return;
   }
-  if (status) status.textContent = tracks.length + ' 首';
+  if (kind === 'album' && tracks.length) {
+    // 专辑封面没有独立来源，用第一首的封面顶着
+    const first = tracks[0];
+    const head = document.createElement('div');
+    head.className = 'album-head';
+    head.innerHTML =
+      '<div class="album-head__art">' + icon('album') + coverMarkup(first, { size: 240 }) + '</div>' +
+      '<div class="album-head__body">' +
+        '<div class="album-head__name">' + esc(name) + '</div>' +
+        '<div class="album-head__meta">' + esc(first.artist || '未知歌手') + ' · ' + tracks.length + ' 首</div>' +
+      '</div>';
+    if (status) status.remove();
+    root.appendChild(head);
+  } else if (status) {
+    status.textContent = tracks.length + ' 首';
+  }
 
   const host = document.createElement('div');
   host.innerHTML = songList(tracks, { playingId: store.state.player.track ? store.state.player.track.id : '' });

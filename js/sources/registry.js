@@ -15,6 +15,76 @@ export const SOURCE_BY_KEY = new Map(SOURCES.map((source) => [source.key, source
 export const DEFAULT_ORDER = SOURCES.map((source) => source.key);
 const SOURCE_TIMEOUT = 9000;
 
+/* --------------------------------------------------------------------------
+   来源健康度：失败过的来源往后排，彻底取不到流的曲目也往后排，
+   避免「酷狗不可用却霸榜」这种情况。数据只存在本地。
+   -------------------------------------------------------------------------- */
+const HEALTH_KEY = 'melody.sourceHealth';
+const DEAD_KEY = 'melody.deadTracks';
+const health = new Map();
+const deadTracks = new Map();
+
+function loadHealth() {
+  try {
+    const raw = localStorage.getItem(HEALTH_KEY);
+    if (raw) JSON.parse(raw).forEach((row) => { if (row && row.key) health.set(row.key, row); });
+    const deadRaw = localStorage.getItem(DEAD_KEY);
+    if (deadRaw) JSON.parse(deadRaw).forEach((row) => { if (row && row.id) deadTracks.set(row.id, row.at || 1); });
+  } catch (_) { /* 忽略 */ }
+}
+
+function persistHealth() {
+  try {
+    localStorage.setItem(HEALTH_KEY, JSON.stringify(Array.from(health.entries()).map(([key, row]) => ({ key, ...row }))));
+  } catch (_) { /* 忽略 */ }
+  try {
+    localStorage.setItem(DEAD_KEY, JSON.stringify(Array.from(deadTracks.entries()).slice(-400).map(([id, at]) => ({ id, at }))));
+  } catch (_) { /* 忽略 */ }
+}
+
+loadHealth();
+
+export function sourceHealth(key) {
+  return health.get(key) || { ok: 0, fails: 0, at: 0 };
+}
+
+/** 0 = 正常，1 = 最近失败多于成功，2 = 基本不可用 */
+export function sourcePenalty(key) {
+  const row = health.get(key);
+  if (!row) return 0;
+  if (row.fails >= 3 && row.ok === 0) return 2;
+  if (row.fails > row.ok) return 1;
+  return 0;
+}
+
+function recordHealth(key, ok) {
+  const row = health.get(key) || { ok: 0, fails: 0, at: 0 };
+  if (ok) row.ok += 1; else row.fails += 1;
+  row.at = Date.now();
+  health.set(key, row);
+  persistHealth();
+}
+
+export function markTrackDead(trackId) {
+  if (!trackId) return;
+  deadTracks.set(trackId, Date.now());
+  persistHealth();
+}
+
+export function markTrackAlive(trackId) {
+  if (trackId && deadTracks.delete(trackId)) persistHealth();
+}
+
+export function isTrackDead(trackId) {
+  return deadTracks.has(trackId);
+}
+
+export function sourceLabelFor(key) {
+  if (key === 'cache') return '本地缓存';
+  const source = SOURCE_BY_KEY.get(key);
+  return source ? source.label : (key || '未知来源');
+}
+
 export function orderedSources(settings) {
   const disabled = new Set((settings && settings['sources.disabled']) || []);
   const order = (settings && settings['sources.order']) || DEFAULT_ORDER;
@@ -25,7 +95,14 @@ export function orderedSources(settings) {
     if (source && !seen.has(key)) { seen.add(key); list.push(source); }
   }
   for (const source of SOURCES) if (!seen.has(source.key)) { seen.add(source.key); list.push(source); }
-  return list.filter((source) => !disabled.has(source.key));
+  const rank = new Map(list.map((source, index) => [source.key, index]));
+  return list
+    .filter((source) => !disabled.has(source.key))
+    .sort((a, b) => {
+      const diff = sourcePenalty(a.key) - sourcePenalty(b.key);
+      if (diff !== 0) return diff;
+      return (rank.get(a.key) || 0) - (rank.get(b.key) || 0);
+    });
 }
 
 /**
@@ -41,11 +118,31 @@ export async function searchAll(query, options = {}) {
 
   const emit = () => {
     if (!options.onProgress) return;
-    const tracks = mergeResults(batches);
+    const tracks = order(mergeResults(batches));
     options.onProgress({
       tracks,
       artists: groupArtists(tracks, query),
       failed: batches.filter((batch) => !batch.ok).map((batch) => ({ label: batch.source.label, error: batch.error })),
+    });
+  };
+
+  const rank = new Map(sources.map((source, index) => [source.key, index]));
+  /** 排序：还能播的在前，其次按来源优先级，最后才是彻底失效的曲目 */
+  const order = (tracks) => {
+    const minRank = (track) => {
+      let best = 99;
+      for (const ref of track.sources || []) {
+        const value = rank.has(ref.source) ? rank.get(ref.source) : 99;
+        if (value < best) best = value;
+      }
+      return best;
+    };
+    return tracks.sort((a, b) => {
+      const dead = (deadTracks.has(a.id) ? 1 : 0) - (deadTracks.has(b.id) ? 1 : 0);
+      if (dead !== 0) return dead;
+      const diff = minRank(a) - minRank(b);
+      if (diff !== 0) return diff;
+      return sourcePenalty(a.sources && a.sources[0] ? a.sources[0].source : '') - sourcePenalty(b.sources && b.sources[0] ? b.sources[0].source : '');
     });
   };
 
@@ -58,8 +155,10 @@ export async function searchAll(query, options = {}) {
     try {
       const result = await source.search(query, { page, limit, signal: controller.signal });
       batch = { source, items: result.items || [], isEnd: result.isEnd !== false, ok: true };
+      recordHealth(source.key, true);
     } catch (err) {
       batch = { source, items: [], isEnd: true, ok: false, error: err && err.name === 'AbortError' ? '超时' : (err && err.message) || '失败' };
+      recordHealth(source.key, false);
     } finally {
       clearTimeout(timer);
       if (options.signal) options.signal.removeEventListener('abort', cancel);
@@ -68,7 +167,7 @@ export async function searchAll(query, options = {}) {
     emit();
   }));
 
-  const tracks = mergeResults(batches);
+  const tracks = order(mergeResults(batches));
   const okCount = batches.filter((batch) => batch.ok).length;
   return {
     tracks,
@@ -107,16 +206,30 @@ export async function resolveTrack(track, settings, options = {}) {
       const value = await adapter.resolveUrl(ref, options);
       if (!value || !value.url) throw new Error('空地址');
       urlCache.set(key, { value, expires: Date.now() + URL_TTL });
-      return { ...value, sourceKey: adapter.key, ref };
+      recordHealth(adapter.key, true);
+      markTrackAlive(track.id);
+      return { ...value, sourceKey: adapter.key, ref, attempt: refs.indexOf(item), label: adapter.label };
     } catch (err) {
+      recordHealth(adapter.key, false);
       lastError = err;
     }
   }
+  markTrackDead(track.id);
   throw lastError || new Error('所有来源都解析失败');
 }
 
+/** 该曲目能提供歌词的来源（用于「更换歌词源」） */
+export function lyricSources(track, settings) {
+  return refsFor(track, settings).filter((item) => item.adapter.lyrics);
+}
+
 export async function lyricsFor(track, settings, options = {}) {
-  for (const item of refsFor(track, settings)) {
+  const refs = refsFor(track, settings);
+  const preferred = settings && settings['prefs.lyricsSource'];
+  if (preferred) {
+    refs.sort((a, b) => (a.adapter.key === preferred ? -1 : 0) - (b.adapter.key === preferred ? -1 : 0));
+  }
+  for (const item of refs) {
     try {
       if (!item.adapter.lyrics) continue;
       const text = await item.adapter.lyrics(item.ref, options);
