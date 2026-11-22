@@ -1,157 +1,88 @@
-/* 缓存管理：占用统计、排序、单条移除与批量清理 */
+/* 缓存管理：只在清理时用——按名称/作者筛选、排序、单条移除 */
 import { esc, icon, fmtBytes, fmtTime } from '../../core/util.js';
 import { store } from '../../core/store.js';
 import { listCached, removeCache } from '../../data/repo.js';
 import { coverMarkup } from '../cover.js';
-import { emptyState, toast, openDialog } from '../components.js';
+import { emptyState, toast } from '../components.js';
 import { refreshCacheState } from '../cache-state.js';
 import { onDataChange } from '../live.js';
-import { player } from '../../player/player.js';
-import { splitArtists } from '../../core/util.js';
 
 let sortMode = 'recent';
-let filterArtist = '';
+let query = '';
+
+function match(row, keyword) {
+  if (!keyword) return true;
+  const track = row.track || {};
+  const haystack = [track.title, track.artist, track.album].join(' ').toLowerCase();
+  return haystack.includes(keyword);
+}
 
 function sortRows(rows) {
   const list = rows.slice();
   if (sortMode === 'size') return list.sort((a, b) => (b.bytes || 0) - (a.bytes || 0));
-  if (sortMode === 'name') return list.sort((a, b) => String(a.track.title || '').localeCompare(String(b.track.title || ''), 'zh'));
+  if (sortMode === 'name') return list.sort((a, b) => String(a.track && a.track.title || '').localeCompare(String(b.track && b.track.title || ''), 'zh'));
   return list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 }
 
 function rowHTML(row) {
   const track = row.track || {};
   const date = row.createdAt ? new Date(row.createdAt).toLocaleDateString('zh-CN') : '';
-  const sub = [fmtBytes(row.bytes || 0), track.duration ? fmtTime(track.duration) : '', date].filter(Boolean).join(' · ');
-  return '<div class="list-item cache-row" data-track-id="' + esc(track.id || '') + '" role="button" tabindex="0">' +
+  const sub = [fmtBytes(row.bytes || 0), track.duration ? fmtTime(track.duration) : '', date, track.artist || ''].filter(Boolean).join(' · ');
+  return '<div class="list-item cache-row" data-track-id="' + esc(track.id || '') + '">' +
     '<div class="list-item__art">' + icon('music_note') + coverMarkup(track, { size: 120 }) + '</div>' +
     '<div class="list-item__body"><div class="list-item__title">' + esc(track.title || '未知曲目') + '</div>' +
     '<div class="list-item__sub">' + esc(sub) + '</div></div>' +
     '<div class="list-item__trail">' +
-      '<button class="icon-btn" data-play="' + esc(track.id || '') + '" aria-label="播放">' + icon('play_arrow', 'icon--20') + '</button>' +
       '<button class="icon-btn" data-remove="' + esc(track.id || '') + '" aria-label="移除缓存">' + icon('delete', 'icon--20') + '</button>' +
     '</div></div>';
-}
-
-async function storageLine() {
-  try {
-    if (!navigator.storage || !navigator.storage.estimate) return '';
-    const info = await navigator.storage.estimate();
-    if (!info || !info.quota) return '';
-    const used = fmtBytes(info.usage || 0);
-    const quota = fmtBytes(info.quota);
-    const percent = Math.min(100, Math.round(((info.usage || 0) / info.quota) * 100));
-    return '<div class="cache-stats__meter" title="浏览器分配给你的存储配额">' +
-      '<span style="width:' + Math.max(2, percent) + '%"></span></div>' +
-      '<div class="cache-stats__hint">浏览器配额 ' + used + ' / ' + quota + '（' + percent + '%）</div>';
-  } catch (_) {
-    return '';
-  }
 }
 
 async function render(root) {
   const profileId = store.state.profileId;
   if (!profileId) { root.innerHTML = emptyState('person', '正在准备档案…'); return; }
   const all = await listCached(profileId);
-  const total = all.reduce((sum, row) => sum + (row.bytes || 0), 0);
-  const artists = [];
-  const counts = new Map();
-  all.forEach((row) => {
-    const name = splitArtists(row.track && row.track.artist)[0];
-    if (!name) return;
-    counts.set(name, (counts.get(name) || 0) + 1);
-  });
-  counts.forEach((count, name) => artists.push({ name, count }));
-  artists.sort((a, b) => b.count - a.count);
-  if (filterArtist && !counts.has(filterArtist)) filterArtist = '';
-  const rows = sortRows(filterArtist
-    ? all.filter((row) => splitArtists(row.track && row.track.artist)[0] === filterArtist)
-    : all);
-  const offlineReady = 'serviceWorker' in navigator && navigator.serviceWorker.controller
-    ? '离线壳已就绪' : '离线壳还没接管（刷新一次即可）';
+  const rows = sortRows(all.filter((row) => match(row, query)));
 
   root.innerHTML =
-    '<div class="cache-stats">' +
-      '<div class="cache-stats__row">' +
-        '<div class="cache-stats__item"><b>' + all.length + '</b><i>首已缓存</i></div>' +
-        '<div class="cache-stats__item"><b>' + fmtBytes(total) + '</b><i>占用空间</i></div>' +
-      '</div>' +
-      '<!-- meter -->' +
-      '<div class="cache-stats__offline">' + icon('cloud_done', 'icon--18') + offlineReady + '</div>' +
+    '<div class="searchbar cache-search">' +
+      '<span class="icon" aria-hidden="true" style="margin-left:8px">search</span>' +
+      '<input class="searchbar__input" type="search" data-cache-search value="' + esc(query) + '" placeholder="按歌曲名或作者筛选" aria-label="筛选缓存">' +
     '</div>' +
-    (artists.length > 1
-      ? '<div class="chip-row cache-filters">' +
-        [{ name: '', label: '全部' }].concat(artists.map((item) => ({ name: item.name, label: item.name + ' · ' + item.count })))
-          .map((item) => '<button class="chip' + (filterArtist === item.name ? ' chip--selected' : '') + '" data-filter="' + esc(item.name) + '">' + esc(item.label) + '</button>').join('') +
-        '</div>'
-      : '') +
     '<div class="row gap-8 cache-actions">' +
       '<div class="segmented segmented--sm" data-sort>' +
-        [['recent', '最近'], ['size', '大小'], ['name', '名称']].map(([key, label]) =>
+        [['recent', '最近'], ['name', '名称'], ['size', '大小']].map(([key, label]) =>
           '<button class="segmented__item" data-value="' + key + '" aria-selected="' + (sortMode === key) + '">' + label + '</button>').join('') +
       '</div>' +
-      '<div class="row gap-8" style="margin-left:auto">' +
-        (rows.length ? '<button class="btn btn--text btn--sm" data-play-all>' + icon('play_arrow') + '顺序播放</button>' : '') +
-        (rows.length ? '<button class="btn btn--text btn--sm" data-clear-cache>' + icon('delete_sweep') + '清空</button>' : '') +
-      '</div>' +
+      '<span class="cache-count">' + (query ? rows.length + ' / ' + all.length : all.length + ' 首') + '</span>' +
     '</div>' +
-    (rows.length ? '<div class="list" data-cache-list>' + rows.map(rowHTML).join('') + '</div>'
-      : filterArtist
-        ? emptyState('filter_alt_off', '这个歌手没有缓存了', '换个筛选条件或清掉筛选')
+    (rows.length
+      ? '<div class="list" data-cache-list>' + rows.map(rowHTML).join('') + '</div>'
+      : all.length
+        ? emptyState('search_off', '没有匹配的缓存', '换个关键词试试')
         : emptyState('download_done', '还没有缓存', '在曲目菜单里点「加入缓存队列」，缓存后可以离线播放与下载'));
 
-  const meter = await storageLine();
-  if (meter) {
-    const host = root.querySelector('.cache-stats');
-    if (host) host.insertAdjacentHTML('beforeend', meter);
+  const input = root.querySelector('[data-cache-search]');
+  if (input) {
+    let timer = 0;
+    input.addEventListener('input', () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        query = input.value.trim().toLowerCase();
+        const at = input.selectionStart;
+        render(root);
+        const next = root.querySelector('[data-cache-search]');
+        if (next) { next.focus({ preventScroll: true }); next.setSelectionRange(at, at); }
+      }, 220);
+    });
   }
-
-  const profile = profileId;
   root.querySelectorAll('[data-sort] .segmented__item').forEach((button) => {
     button.addEventListener('click', () => { sortMode = button.dataset.value; render(root); });
   });
-  root.querySelectorAll('[data-filter]').forEach((button) => {
-    button.addEventListener('click', () => { filterArtist = button.dataset.filter; render(root); });
-  });
   root.querySelectorAll('[data-remove]').forEach((button) => {
-    button.addEventListener('click', async (event) => {
-      event.stopPropagation();
-      await removeCache(profile, button.dataset.remove);
-      await refreshCacheState(profile);
+    button.addEventListener('click', async () => {
+      await removeCache(profileId, button.dataset.remove);
+      await refreshCacheState(profileId);
       toast('已移除缓存');
-    });
-  });
-  root.querySelectorAll('[data-play]').forEach((button) => {
-    button.addEventListener('click', (event) => {
-      event.stopPropagation();
-      const row = rows.find((item) => item.track && item.track.id === button.dataset.play);
-      if (row) player.playTrack(row.track, { queue: rows.map((item) => item.track) });
-    });
-  });
-  root.querySelectorAll('.cache-row').forEach((row) => {
-    row.addEventListener('click', () => {
-      const hit = rows.find((item) => item.track && item.track.id === row.dataset.trackId);
-      if (hit) player.playTrack(hit.track, { queue: rows.map((item) => item.track) });
-    });
-  });
-  const playAll = root.querySelector('[data-play-all]');
-  if (playAll) playAll.addEventListener('click', () => {
-    const queue = rows.map((item) => item.track);
-    if (queue.length) player.playTrack(queue[0], { queue });
-  });
-  const clear = root.querySelector('[data-clear-cache]');
-  if (clear) clear.addEventListener('click', () => {
-    openDialog({
-      title: '清空全部缓存？',
-      description: '会删除 ' + rows.length + ' 首、共 ' + fmtBytes(total) + ' 的音频；收藏与歌单不受影响。',
-      actions: [
-        { label: '取消', variant: 'text' },
-        { label: '清空', variant: 'danger', onClick: async () => {
-          for (const row of rows) await removeCache(profile, row.track && row.track.id);
-          await refreshCacheState(profile);
-          toast('缓存已清空');
-        } },
-      ],
     });
   });
 }

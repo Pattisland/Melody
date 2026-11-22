@@ -203,6 +203,10 @@ export function refsFor(track, settings) {
 export async function resolveTrack(track, settings, options = {}) {
   const refs = refsFor(track, settings);
   if (!refs.length) throw new Error('该曲目没有启用的来源');
+  // 用户在「换个来源试试」里指定的来源排到最前，失败后仍按原顺序回退
+  if (options.prefer) {
+    refs.sort((a, b) => (a.adapter.key === options.prefer ? -1 : 0) - (b.adapter.key === options.prefer ? -1 : 0));
+  }
   let lastError = null;
   for (const item of refs) {
     const { adapter, ref } = item;

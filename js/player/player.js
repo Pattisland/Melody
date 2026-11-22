@@ -247,7 +247,7 @@ class Player {
         url = URL.createObjectURL(cached);
         sourceKey = 'cache';
       } else {
-        const resolved = await resolveTrack(track, this.settings, { signal: this._abort.signal });
+        const resolved = await resolveTrack(track, this.settings, { signal: this._abort.signal, prefer: options.forceSource });
         url = resolved.url;
         sourceKey = resolved.sourceKey;
         sourceLabel = resolved.label || resolved.sourceKey;

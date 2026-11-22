@@ -6,6 +6,7 @@ import { activeLineIndex } from '../player/lyrics.js';
 import { coverSources } from './cover.js';
 import { openTrackMenu } from './track-menu.js';
 import { openQueuePanel } from './queue-panel.js';
+import { openSourcePicker } from './source-picker.js';
 import { openActionMenu, toast } from './components.js';
 import { lyricSources } from '../sources/registry.js';
 import { saveLyrics } from '../download/download.js';
@@ -160,7 +161,12 @@ function renderPlayer() {
   });
   seek.addEventListener('change', () => player.seekTo(Number(seek.value)));
   node.querySelector('[data-collapse]').addEventListener('click', () => setMode('mini'));
-  node.querySelector('[data-toggle]').addEventListener('click', () => player.toggle());
+  node.querySelector('[data-toggle]').addEventListener('click', () => {
+    const p = store.state.player;
+    // 播放失败后再按播放键：先让用户挑来源，而不是原样重试一次
+    if (p.error && p.track) { openSourcePicker(p.track); return; }
+    player.toggle();
+  });
   node.querySelector('[data-next]').addEventListener('click', () => player.next());
   node.querySelector('[data-prev]').addEventListener('click', () => player.prev());
   // 循环/随机只更新按钮状态，不重建播放器（重建会闪一下）
@@ -341,7 +347,12 @@ export function mountShell() {
 
   els.dock.addEventListener('click', (event) => {
     if (!store.state.player.track) return;
-    if (event.target.closest('[data-dock-toggle]')) { player.toggle(); return; }
+    if (event.target.closest('[data-dock-toggle]')) {
+      const p = store.state.player;
+      if (p.error && p.track) { openSourcePicker(p.track); return; }
+      player.toggle();
+      return;
+    }
     if (event.target.closest('[data-dock-next]')) { player.next(); return; }
     const queueButton = event.target.closest('[data-dock-queue]');
     if (queueButton) { openQueuePanel({ anchor: queueButton }); return; }

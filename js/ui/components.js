@@ -394,11 +394,33 @@ export function attachSongList(root, tracks, handlers = {}) {
       }
     });
   };
+  // 缓存标记：缓存完成后立刻出现，不用刷新列表
+  const syncCached = () => {
+    if (!list.isConnected) return;
+    const ids = store.state.cache && store.state.cache.ids instanceof Set ? store.state.cache.ids : null;
+    if (!ids) return;
+    list.querySelectorAll('[data-track-id]').forEach((row) => {
+      const has = ids.has(row.dataset.trackId);
+      const trail = row.querySelector('.list-item__trail');
+      if (!trail) return;
+      const dot = trail.querySelector('.cache-dot');
+      if (has && !dot) {
+        const span = document.createElement('span');
+        span.className = 'cache-dot';
+        span.title = '已缓存';
+        span.innerHTML = '<span class="icon icon--18">download_done</span>';
+        trail.prepend(span);
+      } else if (!has && dot) {
+        dot.remove();
+      }
+    });
+  };
   const unsubscribe = store.subscribe((state, changed) => {
-    if (!changed.includes('player')) return;
-    syncPlaying();
+    if (changed.includes('player')) syncPlaying();
+    if (changed.includes('cache')) syncCached();
   });
   syncPlaying();
+  syncCached();
 
   list.addEventListener('click', (event) => {
     const row = event.target.closest('[data-track-id]');
