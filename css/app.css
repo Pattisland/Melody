@@ -1431,8 +1431,10 @@ html.theme-transition *:not(.player):not(.sheet):not(.dialog):not(.menu--popover
 }
 .lookalike__link:hover { text-decoration: underline; }
 
-/* 首页卡片底部渐隐，滚动时不会露出下一行的硬边 */
-.home-card__scroll {
-  mask-image: linear-gradient(180deg, #000 calc(100% - 22px), transparent 100%);
-  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 22px), transparent 100%);
+/* 首页卡片底部渐隐（只在桌面卡片内滚动时才有意义） */
+@media (min-width: 840px) {
+  .home-card__scroll {
+    mask-image: linear-gradient(180deg, #000 calc(100% - 22px), transparent 100%);
+    -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 22px), transparent 100%);
+  }
 }

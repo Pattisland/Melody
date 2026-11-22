@@ -169,7 +169,7 @@ function renderPlayer() {
   node.querySelector('[data-more]').addEventListener('click', (event) => openTrackMenu(track, { anchor: event.currentTarget }));
   node.querySelector('[data-queue]').addEventListener('click', (event) => openQueuePanel({ anchor: event.currentTarget }));
   node.querySelectorAll('[data-view]').forEach((button) => {
-    button.addEventListener('click', () => { viewMode = button.dataset.view; renderPlayer(); });
+    button.addEventListener('click', () => setViewMode(node, button.dataset.view));
   });
 
   const favButton = node.querySelector('[data-fav]');
@@ -185,6 +185,26 @@ function renderPlayer() {
     favButton.innerHTML = icon(now ? 'favorite' : 'favorite_border');
   });
 
+}
+
+/** 封面 / 歌词切换：只改 data-mode 与标签状态，绝不重建播放器（重建会闪） */
+function setViewMode(node, mode) {
+  viewMode = mode;
+  const desktop = window.matchMedia('(min-width: 900px)').matches;
+  const body = node.querySelector('.player__body');
+  if (body) body.dataset.mode = desktop ? 'both' : mode;
+  node.querySelectorAll('[data-view]').forEach((button) => {
+    button.setAttribute('aria-selected', String(button.dataset.view === mode));
+  });
+  if (mode !== 'lyrics') return;
+  const holder = node.querySelector('[data-lyrics]');
+  const lines = player.lyrics && player.lyrics.lines;
+  if (!holder || !lines || !lines.length) return;
+  // 面板刚从 display:none 变可见，等这一帧布局算完再定位
+  requestAnimationFrame(() => {
+    if (!holder.isConnected) return;
+    paintLyrics(holder, lines, activeLineIndex(lines, store.state.player.current));
+  });
 }
 
 function setMode(mode) {
@@ -212,7 +232,7 @@ function updateProgress() {
   if (seek && seek.max !== String(state.duration || 0)) seek.max = String(state.duration || 0);
 
   const holder = els.player.querySelector('[data-lyrics]');
-  if (holder) {
+  if (holder && holder.clientHeight > 0) {
     const active = activeLineIndex(player.lyrics.lines, state.current);
     if (holder.dataset.active !== String(active)) {
       holder.dataset.active = String(active);
@@ -448,7 +468,11 @@ export function mountShell() {
           handle.classList.remove('is-drag');
           window.removeEventListener('pointermove', move);
           window.removeEventListener('pointerup', up);
-          if (latest !== null) saveSetting('prefs.pageGutter', Math.round(latest)).catch(() => {});
+          if (latest !== null) {
+            const value = Math.round(latest);
+            store.patch('settings', { 'prefs.pageGutter': value });
+            saveSetting('prefs.pageGutter', value).catch(() => {});
+          }
         };
         window.addEventListener('pointermove', move);
         window.addEventListener('pointerup', up);

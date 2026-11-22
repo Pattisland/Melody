@@ -105,8 +105,16 @@ async function boot() {
   router.start();
 
   applyPrefs(settings);
-  const savedGutter = Number(settings['prefs.pageGutter'] || 154);
-  if (savedGutter >= 12) document.documentElement.style.setProperty('--gutter', savedGutter + 'px');
+  // 自定义边距只在桌面布局生效：移动端固定用设计基准，不读用户拖出来的值
+  const gutterQuery = window.matchMedia('(min-width: 840px)');
+  const applyGutter = () => {
+    const root = document.documentElement;
+    const value = Number((store.state.settings || {})['prefs.pageGutter'] || 154);
+    if (gutterQuery.matches && value >= 12) root.style.setProperty('--gutter', value + 'px');
+    else root.style.removeProperty('--gutter');
+  };
+  applyGutter();
+  if (gutterQuery.addEventListener) gutterQuery.addEventListener('change', applyGutter);
 
   let lastTintKey = '';
   on(['player'], () => {
