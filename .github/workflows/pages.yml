@@ -22,5 +22,9 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: .
+      # GitHub 的 artifact 元数据有延迟，deploy-pages 偶尔会读到 0 个 artifact。
+      # 传完后稍等一下，避开这个抖动。
+      - name: Wait for artifact
+        run: sleep 10
       - id: deployment
         uses: actions/deploy-pages@v4
