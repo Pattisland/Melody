@@ -1446,6 +1446,8 @@ html.theme-transition *:not(.player):not(.sheet):not(.dialog):not(.menu--popover
 .timeline__day:first-child { padding-top: 2px; }
 .timeline__day span { font-weight: 400; font-size: var(--ts-label-small-size); opacity: .8; }
 .list-item.is-picked { background: color-mix(in srgb, var(--md-sys-color-primary) 12%, transparent); }
+.list-item[draggable="true"] { cursor: grab; }
+.list-item.is-dragging { opacity: .5; }
 .list-item.is-picked .list-item__title { color: var(--md-sys-color-primary); }
 .pick-mark { flex: 0 0 auto; margin-right: 10px; color: var(--md-sys-color-primary); font-size: 22px; }
 

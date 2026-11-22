@@ -4,7 +4,7 @@ import { router } from '../../core/router.js';
 import { store } from '../../core/store.js';
 import { listHistory, listFavorites, listCached, listPlaylists, createPlaylist,
   listPlaylistItems, deletePlaylist, removeFromPlaylist, updatePlaylist,
-  movePlaylistItem, removeFavorite, addToPlaylist } from '../../data/repo.js';
+  movePlaylistItem, removeFavorite, addToPlaylist, reorderPlaylist } from '../../data/repo.js';
 import { songList, attachSongList, emptyState, toast, askText, openDialog, openActionMenu } from '../components.js';
 import { enqueue } from '../../player/queue.js';
 import { coverMarkup } from '../cover.js';
@@ -370,6 +370,36 @@ async function renderDetail(root, kind, playlistId) {
     attach(host, shown);
   }
   if (picking) paintPicked();
+
+  // 歌单默认顺序下支持拖拽排序（排序键生效时拖拽没有意义，先关掉）
+  if (kind === 'playlist' && playlistId && listSort === 'default' && !picking) {
+    const list = host.querySelector('[data-songlist]');
+    if (list) {
+      let dragId = '';
+      list.querySelectorAll('[data-track-id]').forEach((row) => {
+        row.draggable = true;
+        row.addEventListener('dragstart', (event) => {
+          dragId = row.dataset.trackId;
+          row.classList.add('is-dragging');
+          if (event.dataTransfer) { event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', dragId); }
+        });
+        row.addEventListener('dragend', () => row.classList.remove('is-dragging'));
+        row.addEventListener('dragover', (event) => { event.preventDefault(); });
+        row.addEventListener('drop', async (event) => {
+          event.preventDefault();
+          const targetId = row.dataset.trackId;
+          if (!dragId || dragId === targetId) return;
+          const order = shown.map((track) => track.id);
+          const from = order.indexOf(dragId);
+          const to = order.indexOf(targetId);
+          if (from < 0 || to < 0) return;
+          order.splice(to, 0, order.splice(from, 1)[0]);
+          await reorderPlaylist(playlistId, order);
+          toast('顺序已更新');
+        });
+      });
+    }
+  }
 
   host.querySelectorAll('[data-sort] .segmented__item').forEach((button) => {
     button.addEventListener('click', () => { listSort = button.dataset.value; rerender(); });

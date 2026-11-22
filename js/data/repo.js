@@ -523,6 +523,25 @@ export async function movePlaylistItem(playlistId, trackId, delta) {
   return true;
 }
 
+/** 按给定的曲目顺序重排歌单（拖拽排序用） */
+export async function reorderPlaylist(playlistId, orderedTrackIds) {
+  const items = await listPlaylistItems(playlistId);
+  const byId = new Map(items.map((row) => [row.trackId, row]));
+  const next = [];
+  orderedTrackIds.forEach((id) => {
+    const row = byId.get(id);
+    if (row) { next.push(row); byId.delete(id); }
+  });
+  byId.forEach((row) => next.push(row));
+  await Promise.all(next.map((row, position) => (
+    row.position === position ? null : idb.put('playlistItems', { ...row, position })
+  )));
+  const list = await idb.get('playlists', playlistId);
+  if (list) await idb.put('playlists', { ...list, updatedAt: Date.now() });
+  notifyData('playlist', { playlistId });
+  return true;
+}
+
 export async function removeFromPlaylist(playlistId, trackId) {
   await idb.remove('playlistItems', playlistId + ':' + trackId);
   notifyData('playlist', { playlistId });
