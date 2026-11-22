@@ -1415,6 +1415,23 @@ html.theme-transition *:not(.player):not(.sheet):not(.dialog):not(.menu--popover
 .group--danger { margin-top: 28px; }
 .group--danger .group__label { color: var(--md-sys-color-error); }
 
+/* 缓存管理 */
+.cache-stats {
+  padding: 16px 18px; margin-bottom: 12px;
+  border-radius: var(--shape-lg);
+  background: var(--md-sys-color-surface-container-low);
+}
+.cache-stats__row { display: flex; gap: 32px; }
+.cache-stats__item { display: flex; flex-direction: column; gap: 2px; }
+.cache-stats__item b { font-size: var(--ts-headline-small-size); font-weight: 700; color: var(--md-sys-color-on-surface); }
+.cache-stats__item i { font-size: var(--ts-body-small-size); font-style: normal; color: var(--md-sys-color-on-surface-variant); }
+.cache-stats__meter { margin-top: 14px; height: 6px; border-radius: 999px; background: var(--md-sys-color-surface-container-highest); overflow: hidden; }
+.cache-stats__meter span { display: block; height: 100%; border-radius: inherit; background: var(--md-sys-color-primary); }
+.cache-stats__hint { margin-top: 6px; font-size: var(--ts-label-small-size); color: var(--md-sys-color-on-surface-variant); }
+.cache-stats__offline { display: flex; align-items: center; gap: 6px; margin-top: 12px; font-size: var(--ts-body-small-size); color: var(--md-sys-color-on-surface-variant); }
+.cache-actions { align-items: center; padding: 0 0 12px; flex-wrap: wrap; }
+.segmented--sm .segmented__item { height: 32px; padding: 0 12px; }
+
 /* 搜索页「您是否在找？」：半透明底 + 彩色文字链接 */
 .lookalike {
   margin: 18px 0 10px;

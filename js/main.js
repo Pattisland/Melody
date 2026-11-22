@@ -17,6 +17,7 @@ import searchPage from './ui/pages/search.js';
 import { libraryRoutes } from './ui/pages/library.js';
 import { meRoutes } from './ui/pages/me.js';
 import { collectionRoutes } from './ui/pages/collection.js';
+import { cacheRoute } from './ui/pages/cache.js';
 
 let tintToken = 0;
 let tintActive = false;
@@ -102,6 +103,7 @@ async function boot() {
   for (const route of libraryRoutes) router.add(route);
   for (const route of meRoutes) router.add(route);
   for (const route of collectionRoutes) router.add(route);
+  router.add(cacheRoute);
   router.start();
 
   applyPrefs(settings);

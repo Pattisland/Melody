@@ -272,12 +272,4 @@ export const libraryRoutes = [
     cache: true,
     mount: (root, ctx) => renderDetail(root, 'playlist', ctx.params.id),
   },
-  {
-    path: '/me/cache',
-    level: 2,
-    title: '缓存管理',
-    dest: 'me',
-    cache: true,
-    mount: (root) => renderDetail(root, 'cache', ''),
-  },
 ];
