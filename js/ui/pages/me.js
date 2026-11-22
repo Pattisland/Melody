@@ -7,7 +7,7 @@ import {
   getProfile, updateProfile, listProfiles, createProfile, deleteProfile,
   saveSettings, saveSetting, ensureActiveProfile, cacheStats,
 } from '../../data/repo.js';
-import { SOURCES, DEFAULT_ORDER, sourceHealth } from '../../sources/registry.js';
+import { SOURCES, DEFAULT_ORDER, sourceHealth, resetSourceHealth } from '../../sources/registry.js';
 import * as idb from '../../data/db.js';
 import { mountTasks } from './tasks.js';
 import { saveBlob } from '../../download/download.js';
@@ -271,14 +271,17 @@ async function renderSources(root) {
   const healthText = (key) => {
     const row = sourceHealth(key);
     if (!row.ok && !row.fails) return '还没试过';
-    if (row.fails >= 3 && row.ok === 0) return '最近一直失败';
-    if (row.fails > row.ok) return '不太稳定';
-    return '正常';
+    const parts = [];
+    parts.push(row.fails >= 3 && row.ok === 0 ? '最近一直失败' : row.fails > row.ok ? '不太稳定' : '正常');
+    parts.push('成功 ' + row.ok + ' · 失败 ' + row.fails);
+    if (row.at) parts.push('最近 ' + new Date(row.at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }));
+    return parts.join(' · ');
   };
 
   root.innerHTML =
     '<p class="t-body-m muted" style="padding:0 4px 12px">播放时按下面的顺序回退：某个来源解析失败就换下一个。关闭的来源既不会被搜索，也不会被用于播放。</p>' +
-    '<div class="group"><div class="group__label">来源顺序</div>' +
+    '<div class="group"><div class="group__label row-head"><span>来源顺序</span>' +
+      '<button class="btn btn--text btn--sm" data-reset-health>' + icon('restart_alt', 'icon--18') + '重置健康度</button></div>' +
       '<div class="list" data-source-list>' + order.map((key, index) => {
         const source = SOURCES.find((s) => s.key === key);
         if (!source) return '';
@@ -327,6 +330,12 @@ async function renderSources(root) {
     if (next.size === order.length) { toast('至少保留一个来源'); input.checked = true; return; }
     persist(order, Array.from(next));
   }));
+  const resetHealth = root.querySelector('[data-reset-health]');
+  if (resetHealth) resetHealth.addEventListener('click', () => {
+    resetSourceHealth();
+    toast('来源健康度已重置');
+    renderSources(root);
+  });
   mountLookElsewhere(root, '/me/sources');
 }
 

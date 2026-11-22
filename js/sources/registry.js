@@ -79,6 +79,13 @@ export function isTrackDead(trackId) {
   return deadTracks.has(trackId);
 }
 
+/** 重置所有来源的健康度记录（设置页里可以清一次重来） */
+export function resetSourceHealth() {
+  health.clear();
+  deadTracks.clear();
+  persistHealth();
+}
+
 export function sourceLabelFor(key) {
   if (key === 'cache') return '本地缓存';
   const source = SOURCE_BY_KEY.get(key);

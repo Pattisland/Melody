@@ -1415,6 +1415,10 @@ html.theme-transition *:not(.player):not(.sheet):not(.dialog):not(.menu--popover
 .group--danger { margin-top: 28px; }
 .group--danger .group__label { color: var(--md-sys-color-error); }
 
+/* 分组标题右侧可放按钮 */
+.group__label.row-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-right: 4px; }
+.group__label.row-head .btn { margin: -6px 0; }
+
 /* 缓存管理 */
 .cache-stats {
   padding: 16px 18px; margin-bottom: 12px;
