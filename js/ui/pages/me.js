@@ -230,12 +230,7 @@ async function renderTheme(root) {
       '<div class="group__label">封面取色</div>' +
       prefSwitch('prefs.playerTint', '播放器跟随封面取色', '展开播放器时用封面主色重算整套配色，收起后恢复', settings['prefs.playerTint'] !== false) +
       prefSwitch('prefs.tintGlobal', '全局跟随封面取色', '整个应用跟着当前封面换色（不只是播放器）；开启后播放器强制取色', Boolean(settings['prefs.tintGlobal'])) +
-      '<p class="t-body-s muted" style="padding:4px 20px 14px">封面没有取到主色时沿用上面的种子色。更多动作与外观选项在「偏好设置」。</p>' +
-      '<div class="list-item" data-goto-prefs role="button" tabindex="0">' +
-        '<div class="list-item__art list-item__art--icon">' + icon('tune') + '</div>' +
-        '<div class="list-item__body"><div class="list-item__title">偏好设置</div>' +
-        '<div class="list-item__sub">列表密度、动效、模糊背景、缓存并发</div></div>' +
-        '<div class="list-item__trail">' + icon('chevron_right') + '</div></div>' +
+      '<p class="t-body-s muted" style="padding:4px 20px 14px">封面没有取到主色时沿用上面的种子色。</p>' +
     '</div>';
 
   root.querySelectorAll('[data-mode] .segmented__item').forEach((button) => {
@@ -262,8 +257,6 @@ async function renderTheme(root) {
       store.set({ settings: { ...store.state.settings, [input.dataset.pref]: input.checked } });
     });
   });
-  const goPrefs = root.querySelector('[data-goto-prefs]');
-  if (goPrefs) goPrefs.addEventListener('click', () => router.go('/me/prefs'));
   mountLookElsewhere(root, '/me/theme');
 }
 
@@ -357,11 +350,6 @@ async function renderPrefs(root) {
       prefSwitch('prefs.notifyCache', '完成提示', '缓存与下载结束时提示一条', settings['prefs.notifyCache'] !== false) +
     '</div>' +
     '<div class="group">' +
-      '<div class="list-item" data-goto-theme role="button" tabindex="0">' +
-        '<div class="list-item__art list-item__art--icon">' + icon('palette') + '</div>' +
-        '<div class="list-item__body"><div class="list-item__title">配色与主题</div>' +
-        '<div class="list-item__sub">深色模式、配色方案、种子色、封面取色</div></div>' +
-        '<div class="list-item__trail">' + icon('chevron_right') + '</div></div>' +
       '<div class="group__label">外观</div>' +
       '<div class="list-item" style="cursor:default"><div class="list-item__body">' +
         '<div class="list-item__title">列表密度</div><div class="list-item__sub">紧凑会缩小行高与封面</div></div></div>' +
@@ -393,8 +381,6 @@ async function renderPrefs(root) {
   root.querySelectorAll('[data-density] .segmented__item').forEach((button) => {
     button.addEventListener('click', async () => { await set('prefs.density', button.dataset.value); renderPrefs(root); });
   });
-  const goTheme = root.querySelector('[data-goto-theme]');
-  if (goTheme) goTheme.addEventListener('click', () => router.go('/me/theme'));
   root.querySelectorAll('[data-concurrency] .segmented__item').forEach((button) => {
     button.addEventListener('click', async () => { await set('prefs.cacheConcurrency', Number(button.dataset.value)); renderPrefs(root); });
   });
