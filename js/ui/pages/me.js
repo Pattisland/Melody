@@ -13,6 +13,33 @@ import { mountTasks } from './tasks.js';
 import { saveBlob } from '../../download/download.js';
 import { openDialog, toast, emptyState } from '../components.js';
 
+/* 设置项之间互相跳转：半透明分组 + 主题色文字链接，不做外链 */
+const SETTINGS_PAGES = [
+  { path: '/me/prefs', label: '偏好设置' },
+  { path: '/me/theme', label: '主题配色' },
+  { path: '/me/sources', label: '来源设置' },
+  { path: '/me/data', label: '数据管理' },
+  { path: '/me/profile', label: '档案管理' },
+  { path: '/me/cache', label: '缓存管理' },
+];
+
+function mountLookElsewhere(root, currentPath) {
+  if (!root) return;
+  const items = SETTINGS_PAGES.filter((item) => item.path !== currentPath);
+  if (!items.length) return;
+  const host = document.createElement('section');
+  host.className = 'lookalike';
+  host.setAttribute('aria-label', '您是否在找');
+  host.innerHTML = '<div class="lookalike__title">您是否在找？</div>' +
+    '<div class="lookalike__links">' + items.map((item) =>
+      '<button class="lookalike__link" type="button" data-goto="' + esc(item.path) + '">' + esc(item.label) + '</button>').join('') +
+    '</div>';
+  host.querySelectorAll('[data-goto]').forEach((button) => {
+    button.addEventListener('click', () => router.go(button.dataset.goto));
+  });
+  root.appendChild(host);
+}
+
 function avatarHtml(profile, large) {
   const size = large ? 'avatar avatar--lg' : 'avatar';
   if (profile && profile.avatar) return '<div class="' + size + '"><img src="' + esc(profile.avatar) + '" alt=""></div>';
@@ -237,6 +264,7 @@ async function renderTheme(root) {
   });
   const goPrefs = root.querySelector('[data-goto-prefs]');
   if (goPrefs) goPrefs.addEventListener('click', () => router.go('/me/prefs'));
+  mountLookElsewhere(root, '/me/theme');
 }
 
 /* ------------------------------ 来源设置 ------------------------------ */
@@ -306,6 +334,7 @@ async function renderSources(root) {
     if (next.size === order.length) { toast('至少保留一个来源'); input.checked = true; return; }
     persist(order, Array.from(next));
   }));
+  mountLookElsewhere(root, '/me/sources');
 }
 
 /* ------------------------------ 偏好设置 ------------------------------ */
@@ -369,6 +398,7 @@ async function renderPrefs(root) {
   root.querySelectorAll('[data-concurrency] .segmented__item').forEach((button) => {
     button.addEventListener('click', async () => { await set('prefs.cacheConcurrency', Number(button.dataset.value)); renderPrefs(root); });
   });
+  mountLookElsewhere(root, '/me/prefs');
 }
 
 /* ------------------------------ 数据管理 ------------------------------ */
@@ -536,6 +566,7 @@ async function renderData(root) {
       });
     }
   }));
+  mountLookElsewhere(root, '/me/data');
 }
 
 /* ------------------------------ 其它 ------------------------------ */
