@@ -42,13 +42,17 @@ async function renderLibrary(root) {
 
   root.innerHTML =
     '<h1 class="page-title">曲库</h1>' +
-    '<div class="section"><div class="list">' + SYSTEM.map((item) =>
-      '<div class="list-item" data-sys="' + item.key + '" role="button" tabindex="0">' +
-        '<div class="list-item__art list-item__art--icon">' + icon(item.icon) + '</div>' +
+    '<div class="section"><div class="list">' + SYSTEM.map((item) => {
+      const first = item.key === 'recent'
+        ? (history[0] ? history[0].track : null)
+        : (favorites[0] ? favorites[0].track : null);
+      return '<div class="list-item" data-sys="' + item.key + '" role="button" tabindex="0">' +
+        '<div class="list-item__art">' + systemCover(first, item.icon) + '</div>' +
         '<div class="list-item__body"><div class="list-item__title">' + esc(item.label) + '</div>' +
         '<div class="list-item__sub">' + (stats[item.key] || 0) + ' 首 · ' + esc(item.hint) + '</div></div>' +
         '<div class="list-item__trail">' + icon('chevron_right') + '</div>' +
-      '</div>').join('') + '</div></div>' +
+      '</div>';
+    }).join('') + '</div></div>' +
     '<div class="section">' +
       '<div class="section__head"><h2 class="section__title">我的歌单</h2>' +
       '<button class="btn btn--text btn--sm" data-new-list>' + icon('add') + '新建</button></div>' +
@@ -122,6 +126,28 @@ function exportPlaylist(list, tracks) {
   };
   saveBlob(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8' }), safeName(list.name) + '.json');
   toast('已导出「' + list.name + '」');
+}
+
+/** 系统歌单封面：第一首（最新）曲目的封面做模糊底，再盖上一层图标 */
+function systemCover(track, iconName) {
+  return '<span class="pl-cover">' +
+    (track ? '<span class="pl-cover__bg">' + coverMarkup(track, { size: 240 }) + '</span>' : '') +
+    '<span class="pl-cover__icon icon" aria-hidden="true">' + iconName + '</span>' +
+  '</span>';
+}
+
+function systemHeadHTML(kind, tracks) {
+  const first = tracks[0] || null;
+  const config = kind === 'recent'
+    ? { icon: 'history', name: '最近播放', hint: '听过的歌按时间倒序' }
+    : { icon: 'favorite', name: '我的喜欢', hint: '点星标收藏的曲目' };
+  return '<div class="pl-head lib-head">' +
+    '<div class="pl-head__art">' + systemCover(first, config.icon) + '</div>' +
+    '<div class="pl-head__body">' +
+      '<div class="pl-head__name">' + esc(config.name) + '</div>' +
+      '<div class="pl-head__meta">' + tracks.length + ' 首' + (totalTime(tracks) !== '0:00' ? ' · ' + totalTime(tracks) : '') + '</div>' +
+      '<div class="pl-head__desc"><span class="pl-head__hint">' + esc(config.hint) + '</span></div>' +
+    '</div></div>';
 }
 
 /* 列表状态：排序、多选（切换页面或歌单时重置） */
@@ -262,15 +288,20 @@ async function renderDetail(root, kind, playlistId) {
     }
   }
 
-  // 最近播放/我的喜欢没有头部块：重渲染前清空，避免列表叠加
-  if (kind !== 'playlist') root.innerHTML = '';
+  // 重渲染前先移除自己上次生成的头部与列表，避免叠加
+  root.querySelectorAll('.lib-head, .lib-list-host').forEach((node) => node.remove());
   const sorted = sortEntries(entries);
   const shown = sorted.map((entry) => entry.track);
   const canRemove = kind === 'favorites' || (kind === 'playlist' && playlistId);
   const playingId = store.state.player.track ? store.state.player.track.id : '';
   const rerender = () => renderDetail(root, kind, playlistId);
 
+  if (kind === 'recent' || kind === 'favorites') {
+    root.insertAdjacentHTML('afterbegin', systemHeadHTML(kind, sorted.map((entry) => entry.track)));
+  }
+
   const host = document.createElement('div');
+  host.className = 'lib-list-host';
   if (!tracks.length) {
     host.innerHTML = emptyState(kind === 'cache' ? 'download_done' : 'music_note', '这里还是空的', kind === 'favorites' ? '在曲目菜单里点「收藏」' : kind === 'cache' ? '缓存后可以离线播放与下载' : '听过的歌会自动出现在这里');
     root.appendChild(host);

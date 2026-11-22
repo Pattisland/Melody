@@ -1431,6 +1431,21 @@ html.theme-transition *:not(.player):not(.sheet):not(.dialog):not(.menu--popover
   .nav__ind { margin-top: -34px; height: 30px; }
 }
 
+/* 系统歌单封面：第一首（最新）曲目封面做模糊底 + 图标 */
+.pl-cover { position: relative; display: grid; place-items: center; width: 100%; height: 100%; overflow: hidden; border-radius: inherit; }
+.pl-cover__bg { position: absolute; inset: -14%; }
+.pl-cover__bg img { width: 100%; height: 100%; object-fit: cover; filter: blur(10px) saturate(1.25); opacity: .8; }
+.pl-cover::after {
+  content: ''; position: absolute; inset: 0;
+  background: color-mix(in srgb, var(--md-sys-color-surface-container-high) 34%, transparent);
+}
+.pl-cover__icon {
+  position: relative; z-index: 1; font-size: 26px;
+  color: var(--md-sys-color-on-surface);
+  text-shadow: 0 1px 3px color-mix(in srgb, #000 28%, transparent);
+}
+.pl-head__art .pl-cover__icon { font-size: 40px; }
+
 /* 列表工具条 / 时间线 / 多选 */
 .lib-toolbar {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
