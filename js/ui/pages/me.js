@@ -594,6 +594,37 @@ function renderStub(root, ctx) {
     '</div>';
 }
 
+function aboutRow(title, sub) {
+  return '<div class="list-item about-row" style="cursor:default"><div class="list-item__body">' +
+    '<div class="list-item__title">' + esc(title) + '</div>' +
+    '<div class="list-item__sub">' + sub + '</div></div></div>';
+}
+
+function aboutActionRow(act, iconName, title, sub) {
+  return '<div class="list-item about-row" data-act="' + act + '" role="button" tabindex="0">' +
+    '<div class="list-item__art list-item__art--icon">' + icon(iconName) + '</div>' +
+    '<div class="list-item__body"><div class="list-item__title">' + esc(title) + '</div>' +
+    '<div class="list-item__sub">' + sub + '</div></div>' +
+    '<div class="list-item__trail">' + (act === 'about-update' ? icon('chevron_right') : icon('open_in_new')) + '</div></div>';
+}
+
+/* 手动检查更新：有新版本就交给 SW 装，装好了再提示刷新 */
+async function checkForUpdate() {
+  const sw = navigator.serviceWorker;
+  if (!sw) { toast('这个浏览器不支持离线缓存，刷新页面就能拿到最新版本'); return; }
+  let reg = null;
+  try { reg = await sw.getRegistration(); } catch { reg = null; }
+  if (!reg) { toast('离线缓存没有启用（本地调试时常见），刷新页面即为最新版本'); return; }
+  try { await reg.update(); } catch { toast('检查更新失败，稍后再试'); return; }
+  if (reg.waiting) {
+    toast('新版本已就绪', { actionLabel: '刷新', timeout: 12000, onAction: () => location.reload() });
+  } else if (reg.installing) {
+    toast('正在下载新版本…');
+  } else {
+    toast('已是最新版本');
+  }
+}
+
 function renderAbout(root) {
   root.innerHTML =
     '<div class="stack gap-16" style="align-items:center;text-align:center;padding:32px 0">' +
@@ -603,38 +634,52 @@ function renderAbout(root) {
     '</div>' +
     '<div class="group">' +
       '<div class="group__label">关于这个应用</div>' +
-      '<div class="list-item" style="cursor:default"><div class="list-item__body">' +
-        '<div class="list-item__title">纯静态、零构建</div>' +
-        '<div class="list-item__sub">原生 ES Module + 手写 CSS，没有框架与打包步骤；托管在 GitHub Pages，用 hash 路由与相对路径，子路径也能跑</div></div></div>' +
-      '<div class="list-item" style="cursor:default"><div class="list-item__body">' +
-        '<div class="list-item__title">数据只在你的浏览器里</div>' +
-        '<div class="list-item__sub">档案、收藏、歌单、历史与缓存全部存在 IndexedDB，不上传任何服务器；换设备请用「数据管理 → 导出配置」</div></div></div>' +
-      '<div class="list-item" style="cursor:default"><div class="list-item__body">' +
-        '<div class="list-item__title">内容来源</div>' +
-        '<div class="list-item__sub">应用不存储也不分发音频，搜索与取流直连第三方公开接口；可否播放取决于对方可用性</div></div></div>' +
+      aboutRow('纯静态、零构建', '原生 ES Module 加手写 CSS，没有框架也没有打包步骤；hash 路由与相对路径，放在 GitHub Pages 的子路径下就能跑') +
+      aboutRow('数据只在你的浏览器里', '档案、收藏、歌单、历史与缓存都记在 IndexedDB，不上传任何服务器；换设备请用「数据管理 → 导出配置」') +
+      aboutRow('内容来源', '应用不存储也不分发音频，搜索与取流直连第三方公开接口；某个来源变慢或有坏档时，会自动换到下一家') +
+    '</div>' +
+    '<div class="group">' +
+      '<div class="group__label">离线与更新</div>' +
+      aboutRow('断网也能打开', 'Service Worker 在空闲时把整份应用（页面模块、样式、字体、图标）预缓存下来，断网后打开过的页面照样能用') +
+      aboutRow('缓存过的歌离线可听', '下载或播放过的音频存在本地，断网时直接用缓存播放，不用再等源站') +
+      aboutRow('新版本自己提示', '后台装好新版本后弹一条「刷新」提示，不必再按 Ctrl+Shift+R 强刷') +
+    '</div>' +
+    '<div class="group">' +
+      '<div class="group__label">快捷操作</div>' +
+      aboutRow('播放控制', '空格 播放/暂停，← → 前后 5 秒，↑ ↓ 音量，M 静音，F 收藏') +
+      aboutRow('列表与菜单', '行上按 Shift+F10 或菜单键打开操作菜单：↑ ↓ 移动，Home / End 到首尾，Esc 关闭') +
+      aboutRow('全屏播放器', '按 Esc 回到页面；进度条与音量条可以直接点或拖') +
     '</div>' +
     '<div class="group">' +
       '<div class="group__label">配色与排版</div>' +
-      '<div class="list-item" style="cursor:default"><div class="list-item__body">' +
-        '<div class="list-item__title">Material You</div>' +
-        '<div class="list-item__sub">用 Material Color Utilities 在本地计算 HCT 配色，三种变体；跟随系统深浅色，播放器可随封面取色</div></div></div>' +
-      '<div class="list-item" style="cursor:default"><div class="list-item__body">' +
-        '<div class="list-item__title">字体</div>' +
-        '<div class="list-item__sub">Roboto（本地打包，latin 子集）+ 系统中文字体栈，图标使用本地的 Material Icons Round</div></div></div>' +
+      aboutRow('Material You', '用 Material Color Utilities 在本地计算 HCT 配色，三种变体；跟随系统深浅色，播放器可随封面取色') +
+      aboutRow('字体与图标', 'Roboto（本地打包，latin 子集）加系统中文字体栈，图标使用本地的 Material Icons Round') +
     '</div>' +
     '<div class="group">' +
       '<div class="group__label">版本</div>' +
-      '<div class="list-item" style="cursor:default"><div class="list-item__body">' +
-        '<div class="list-item__title">Melody 0.1.0</div>' +
-        '<div class="list-item__sub">P1–P3 已完成，P4（离线 / 动效 / 无障碍 / 性能）在收尾</div></div></div>' +
-      '<div class="list-item" data-act="about-links" role="button" tabindex="0">' +
-        '<div class="list-item__art list-item__art--icon">' + icon('public') + '</div>' +
-        '<div class="list-item__body"><div class="list-item__title">在线站点与仓库</div>' +
-        '<div class="list-item__sub">pattisland.github.io/Melody · github.com/Pattisland/Melody</div></div>' +
-        '<div class="list-item__trail">' + icon('open_in_new') + '</div></div>' +
+      aboutRow('Melody 0.1.0', 'P1–P4 全部完成：基础播放、来源与歌单、设置体系、离线 / 动效 / 无障碍 / 性能') +
+      aboutActionRow('about-update', 'refresh', '检查更新', '手动问一次服务器；有新版本会下载到本地并提示刷新') +
+    '</div>' +
+    '<div class="group">' +
+      '<div class="group__label">在线站点与仓库</div>' +
+      aboutActionRow('about-site', 'public', '在线站点', 'pattisland.github.io/Melody') +
+      aboutActionRow('about-repo', 'public', 'GitHub 仓库', 'github.com/Pattisland/Melody') +
     '</div>';
-  const repo = root.querySelector('[data-act="about-links"]');
-  if (repo) repo.addEventListener('click', () => window.open('https://github.com/Pattisland/Melody', '_blank', 'noopener'));
+
+  const open = (url) => window.open(url, '_blank', 'noopener');
+  const site = root.querySelector('[data-act="about-site"]');
+  if (site) site.addEventListener('click', () => open('https://pattisland.github.io/Melody/'));
+  const repo = root.querySelector('[data-act="about-repo"]');
+  if (repo) repo.addEventListener('click', () => open('https://github.com/Pattisland/Melody'));
+  const update = root.querySelector('[data-act="about-update"]');
+  if (update) {
+    update.addEventListener('click', () => { checkForUpdate(); });
+    update.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      checkForUpdate();
+    });
+  }
 }
 
 export const meRoutes = [
