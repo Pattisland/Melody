@@ -152,6 +152,8 @@ function systemHeadHTML(kind, tracks) {
 
 /* 列表状态：排序、多选（切换页面或歌单时重置） */
 let listSort = 'default';
+const PAGE_SIZE = 60;
+let listLimit = PAGE_SIZE;
 let picking = false;
 let picked = new Set();
 let entries = [];
@@ -162,6 +164,7 @@ function resetListState(kind, playlistId) {
   if (detailKey === key) return;
   detailKey = key;
   listSort = 'default';
+  listLimit = PAGE_SIZE;
   picking = false;
   picked = new Set();
 }
@@ -291,7 +294,9 @@ async function renderDetail(root, kind, playlistId) {
   // 重渲染前先移除自己上次生成的头部与列表，避免叠加
   root.querySelectorAll('.lib-head, .lib-list-host').forEach((node) => node.remove());
   const sorted = sortEntries(entries);
-  const shown = sorted.map((entry) => entry.track);
+  const visible = sorted.slice(0, listLimit);
+  const shown = visible.map((entry) => entry.track);
+  const hidden = sorted.length - visible.length;
   const canRemove = kind === 'favorites' || (kind === 'playlist' && playlistId);
   const playingId = store.state.player.track ? store.state.player.track.id : '';
   const rerender = () => renderDetail(root, kind, playlistId);
@@ -327,13 +332,16 @@ async function renderDetail(root, kind, playlistId) {
         '</div>') +
     '</div>';
 
+  const more = hidden > 0
+    ? '<div class="list-more"><button class="btn btn--outlined btn--sm" data-more-rows>再显示 ' + Math.min(PAGE_SIZE, hidden) + ' 首（还有 ' + hidden + ' 首）</button></div>'
+    : '';
   const body = kind === 'recent'
-    ? '<div class="timeline">' + timelineGroups(sorted).map((group) =>
+    ? '<div class="timeline">' + timelineGroups(visible).map((group) =>
         '<div class="timeline__day">' + esc(group.label) + '<span>' + group.rows.length + ' 首</span></div>' +
         songList(group.rows.map((row) => row.track), { playingId })).join('') + '</div>'
     : songList(shown, { playingId });
 
-  host.innerHTML = toolbar + body;
+  host.innerHTML = toolbar + body + more;
   root.appendChild(host);
 
   const paintPicked = () => {
@@ -392,8 +400,11 @@ async function renderDetail(root, kind, playlistId) {
     onInfo: (track) => openTrackInfo(track),
   });
 
+  const moreButton = host.querySelector('[data-more-rows]');
+  if (moreButton) moreButton.addEventListener('click', () => { listLimit += PAGE_SIZE; rerender(); });
+
   if (kind === 'recent') {
-    const groups = timelineGroups(sorted);
+    const groups = timelineGroups(visible);
     host.querySelectorAll('[data-songlist]').forEach((list, index) => {
       const group = groups[index];
       attach(list, group ? group.rows.map((row) => row.track) : shown);
@@ -404,7 +415,7 @@ async function renderDetail(root, kind, playlistId) {
   if (picking) paintPicked();
 
   // 歌单默认顺序下支持拖拽排序（排序键生效时拖拽没有意义，先关掉）
-  if (kind === 'playlist' && playlistId && listSort === 'default' && !picking) {
+  if (kind === 'playlist' && playlistId && listSort === 'default' && !picking && hidden === 0) {
     const list = host.querySelector('[data-songlist]');
     if (list) {
       let dragId = '';

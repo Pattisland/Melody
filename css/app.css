@@ -1465,6 +1465,7 @@ html.theme-transition *:not(.player):not(.sheet):not(.dialog):not(.menu--popover
 }
 .select:focus-visible { outline: 2px solid var(--md-sys-color-primary); outline-offset: 1px; }
 .select-wrap__icon { position: absolute; right: 10px; pointer-events: none; font-size: 20px; color: var(--md-sys-color-on-surface-variant); }
+.list-more { display: flex; justify-content: center; padding: 16px 0 8px; }
 .lib-toolbar__count { font-size: var(--ts-body-medium-size); color: var(--md-sys-color-on-surface-variant); }
 .lib-toolbar__count b { color: var(--md-sys-color-primary); font-size: var(--ts-title-medium-size); }
 .timeline__day {
