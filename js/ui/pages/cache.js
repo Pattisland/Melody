@@ -49,10 +49,11 @@ async function render(root) {
       '<input class="searchbar__input" type="search" data-cache-search value="' + esc(query) + '" placeholder="按歌曲名或作者筛选" aria-label="筛选缓存">' +
     '</div>' +
     '<div class="row gap-8 cache-actions">' +
-      '<div class="segmented segmented--sm" data-sort>' +
-        [['recent', '最近'], ['name', '名称'], ['size', '大小']].map(([key, label]) =>
-          '<button class="segmented__item" data-value="' + key + '" aria-selected="' + (sortMode === key) + '">' + label + '</button>').join('') +
-      '</div>' +
+      '<label class="select-wrap"><span class="select-wrap__label">排序</span>' +
+        '<select class="select" data-sort aria-label="排序依据">' +
+          [['recent', '最近缓存'], ['name', '按名称'], ['size', '按大小']].map(([key, label]) =>
+            '<option value="' + key + '"' + (sortMode === key ? ' selected' : '') + '>' + label + '</option>').join('') +
+        '</select><span class="icon select-wrap__icon" aria-hidden="true">expand_more</span></label>' +
       '<span class="cache-count">' + (query ? rows.length + ' / ' + all.length : all.length + ' 首') + '</span>' +
     '</div>' +
     (rows.length
@@ -75,9 +76,8 @@ async function render(root) {
       }, 220);
     });
   }
-  root.querySelectorAll('[data-sort] .segmented__item').forEach((button) => {
-    button.addEventListener('click', () => { sortMode = button.dataset.value; render(root); });
-  });
+  const sortSelect = root.querySelector('[data-sort]');
+  if (sortSelect) sortSelect.addEventListener('change', () => { sortMode = sortSelect.value; render(root); });
   root.querySelectorAll('[data-remove]').forEach((button) => {
     button.addEventListener('click', async () => {
       await removeCache(profileId, button.dataset.remove);

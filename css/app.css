@@ -1451,6 +1451,20 @@ html.theme-transition *:not(.player):not(.sheet):not(.dialog):not(.menu--popover
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
   padding: 0 4px 12px;
 }
+.select-wrap { position: relative; display: inline-flex; align-items: center; gap: 8px; }
+.select-wrap__label { font-size: var(--ts-body-small-size); color: var(--md-sys-color-on-surface-variant); }
+.select {
+  appearance: none; -webkit-appearance: none;
+  height: 40px; padding: 0 36px 0 14px;
+  border: 1px solid var(--md-sys-color-outline);
+  border-radius: var(--shape-full);
+  background: var(--md-sys-color-surface-container-high);
+  color: var(--md-sys-color-on-surface);
+  font-family: inherit; font-size: var(--ts-body-medium-size);
+  cursor: pointer;
+}
+.select:focus-visible { outline: 2px solid var(--md-sys-color-primary); outline-offset: 1px; }
+.select-wrap__icon { position: absolute; right: 10px; pointer-events: none; font-size: 20px; color: var(--md-sys-color-on-surface-variant); }
 .lib-toolbar__count { font-size: var(--ts-body-medium-size); color: var(--md-sys-color-on-surface-variant); }
 .lib-toolbar__count b { color: var(--md-sys-color-primary); font-size: var(--ts-title-medium-size); }
 .timeline__day {

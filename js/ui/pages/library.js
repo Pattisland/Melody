@@ -317,10 +317,11 @@ async function renderDetail(root, kind, playlistId) {
           (canRemove ? '<button class="btn btn--text btn--sm" data-bulk="remove">' + icon('delete') + '移除</button>' : '') +
           '<button class="btn btn--text btn--sm" data-bulk="exit">取消</button>' +
         '</div>'
-      : '<div class="segmented segmented--sm" data-sort>' +
-        [['default', '默认'], ['name', '名称'], ['artist', '歌手'], ['duration', '时长']].map(([key, label]) =>
-          '<button class="segmented__item" data-value="' + key + '" aria-selected="' + (listSort === key) + '">' + label + '</button>').join('') +
-        '</div>' +
+      : '<label class="select-wrap"><span class="select-wrap__label">排序</span>' +
+        '<select class="select" data-sort aria-label="排序依据">' +
+          [['default', '默认顺序'], ['name', '按名称'], ['artist', '按歌手'], ['duration', '按时长']].map(([key, label]) =>
+            '<option value="' + key + '"' + (listSort === key ? ' selected' : '') + '>' + label + '</option>').join('') +
+        '</select><span class="icon select-wrap__icon" aria-hidden="true">expand_more</span></label>' +
         '<div class="row gap-8" style="margin-left:auto">' +
           '<button class="btn btn--text btn--sm" data-pick>' + icon('checklist') + '选择</button>' +
         '</div>') +
@@ -432,9 +433,8 @@ async function renderDetail(root, kind, playlistId) {
     }
   }
 
-  host.querySelectorAll('[data-sort] .segmented__item').forEach((button) => {
-    button.addEventListener('click', () => { listSort = button.dataset.value; rerender(); });
-  });
+  const sortSelect = host.querySelector('[data-sort]');
+  if (sortSelect) sortSelect.addEventListener('change', () => { listSort = sortSelect.value; rerender(); });
   const pickButton = host.querySelector('[data-pick]');
   if (pickButton) pickButton.addEventListener('click', () => { picking = true; picked = new Set(); rerender(); });
   host.querySelectorAll('[data-bulk]').forEach((button) => {

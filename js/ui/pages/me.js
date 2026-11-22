@@ -11,7 +11,7 @@ import { SOURCES, DEFAULT_ORDER, sourceHealth, resetSourceHealth } from '../../s
 import * as idb from '../../data/db.js';
 import { mountTasks } from './tasks.js';
 import { saveBlob } from '../../download/download.js';
-import { openDialog, toast, emptyState } from '../components.js';
+import { openDialog, toast, emptyState, askText } from '../components.js';
 
 /* 设置项之间互相跳转：半透明分组 + 主题色文字链接，不做外链 */
 const SETTINGS_PAGES = [
@@ -102,13 +102,18 @@ function readImage(file, max) {
 async function renderProfile(root) {
   const profile = await getProfile(store.state.profileId);
   const profiles = await listProfiles();
+  const currentName = (profile && profile.name) || '我的档案';
   root.innerHTML =
-    '<div class="stack gap-16">' +
-      '<label class="field"><span class="field__label">档案名称</span>' +
-      '<input class="input" data-name value="' + esc((profile && profile.name) || '') + '" maxlength="24" placeholder="给这个档案起个名字"></label>' +
-      '<button class="btn btn--filled btn--block" data-save>保存</button>' +
+    '<div class="group">' +
+      '<div class="group__label">当前档案</div>' +
+      '<div class="list-item" style="cursor:default">' +
+        avatarHtml(profile, false) +
+        '<div class="list-item__body"><div class="list-item__title">' + esc(currentName) + '</div>' +
+        '<div class="list-item__sub">' + profiles.length + ' 个档案，每个档案的数据独立</div></div>' +
+        '<div class="list-item__trail"><button class="btn btn--text btn--sm" data-rename>' + icon('edit') + '重命名</button></div>' +
+      '</div>' +
     '</div>' +
-    '<div class="section"><div class="section__head"><span class="section__title">全部档案</span>' +
+    '<div class="group"><div class="group__label row-head"><span>全部档案</span>' +
       '<button class="btn btn--text btn--sm" data-new>' + icon('add') + '新建</button></div>' +
       '<div class="list">' + profiles.map((row) =>
         '<div class="list-item" data-switch="' + esc(row.id) + '" role="button" tabindex="0">' +
@@ -117,16 +122,25 @@ async function renderProfile(root) {
           '<div class="list-item__sub">' + (row.id === store.state.profileId ? '当前档案' : '点击切换') + '</div></div>' +
           (row.id === store.state.profileId ? '<div class="list-item__trail">' + icon('check') + '</div>' : '') +
         '</div>').join('') + '</div>' +
-      (profiles.length > 1 ? '<div class="mt-16"><button class="btn btn--text" data-delete style="color:var(--md-sys-color-error)">删除当前档案</button></div>' : '') +
-    '</div>';
+    '</div>' +
+    (profiles.length > 1
+      ? '<div class="group group--danger"><div class="group__label">危险操作</div>' +
+        '<div class="list-item" data-delete role="button" tabindex="0">' +
+          '<div class="list-item__art list-item__art--icon" style="color:var(--md-sys-color-error)">' + icon('delete_forever') + '</div>' +
+          '<div class="list-item__body"><div class="list-item__title" style="color:var(--md-sys-color-error)">删除当前档案</div>' +
+          '<div class="list-item__sub">收藏、歌单、历史与缓存会一起删除</div></div>' +
+          '<div class="list-item__trail">' + icon('chevron_right') + '</div></div>' +
+        '</div>'
+      : '');
 
-  root.querySelector('[data-save]').addEventListener('click', async () => {
-    const name = root.querySelector('[data-name]').value.trim();
-    if (!name) { toast('名字不能为空'); return; }
+  const rename = root.querySelector('[data-rename]');
+  if (rename) rename.addEventListener('click', async () => {
+    const name = await askText({ title: '重命名档案', label: '档案名称', value: currentName, confirmText: '保存' });
+    if (!name || name === currentName) return;
     await updateProfile(profile.id, { name });
-    const profilesNext = await listProfiles();
-    store.set({ profiles: profilesNext });
-    toast('已保存');
+    store.set({ profiles: await listProfiles() });
+    toast('已重命名为「' + name + '」');
+    renderProfile(root);
   });
 
   root.querySelectorAll('[data-switch]').forEach((row) => {
@@ -417,10 +431,6 @@ async function renderData(root) {
     '<div class="group">' +
       '<div class="group__label">档案</div>' +
       navRow('person', '档案管理', profiles.length + ' 个档案 · 新建 / 切换 / 重命名', '/me/profile') +
-      '<div class="list-item" data-act="rename-profile" role="button" tabindex="0">' +
-        '<div class="list-item__art list-item__art--icon">' + icon('edit') + '</div>' +
-        '<div class="list-item__body"><div class="list-item__title">重命名当前档案</div>' +
-        '<div class="list-item__sub">' + esc(currentName) + '</div></div></div>' +
     '</div>' +
     '<div class="group">' +
       '<div class="group__label">数据</div>' +
