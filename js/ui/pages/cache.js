@@ -7,8 +7,10 @@ import { emptyState, toast, openDialog } from '../components.js';
 import { refreshCacheState } from '../cache-state.js';
 import { onDataChange } from '../live.js';
 import { player } from '../../player/player.js';
+import { splitArtists } from '../../core/util.js';
 
 let sortMode = 'recent';
+let filterArtist = '';
 
 function sortRows(rows) {
   const list = rows.slice();
@@ -50,20 +52,39 @@ async function storageLine() {
 async function render(root) {
   const profileId = store.state.profileId;
   if (!profileId) { root.innerHTML = emptyState('person', '正在准备档案…'); return; }
-  const rows = sortRows(await listCached(profileId));
-  const total = rows.reduce((sum, row) => sum + (row.bytes || 0), 0);
+  const all = await listCached(profileId);
+  const total = all.reduce((sum, row) => sum + (row.bytes || 0), 0);
+  const artists = [];
+  const counts = new Map();
+  all.forEach((row) => {
+    const name = splitArtists(row.track && row.track.artist)[0];
+    if (!name) return;
+    counts.set(name, (counts.get(name) || 0) + 1);
+  });
+  counts.forEach((count, name) => artists.push({ name, count }));
+  artists.sort((a, b) => b.count - a.count);
+  if (filterArtist && !counts.has(filterArtist)) filterArtist = '';
+  const rows = sortRows(filterArtist
+    ? all.filter((row) => splitArtists(row.track && row.track.artist)[0] === filterArtist)
+    : all);
   const offlineReady = 'serviceWorker' in navigator && navigator.serviceWorker.controller
     ? '离线壳已就绪' : '离线壳还没接管（刷新一次即可）';
 
   root.innerHTML =
     '<div class="cache-stats">' +
       '<div class="cache-stats__row">' +
-        '<div class="cache-stats__item"><b>' + rows.length + '</b><i>首已缓存</i></div>' +
+        '<div class="cache-stats__item"><b>' + all.length + '</b><i>首已缓存</i></div>' +
         '<div class="cache-stats__item"><b>' + fmtBytes(total) + '</b><i>占用空间</i></div>' +
       '</div>' +
       '<!-- meter -->' +
       '<div class="cache-stats__offline">' + icon('cloud_done', 'icon--18') + offlineReady + '</div>' +
     '</div>' +
+    (artists.length > 1
+      ? '<div class="chip-row cache-filters">' +
+        [{ name: '', label: '全部' }].concat(artists.map((item) => ({ name: item.name, label: item.name + ' · ' + item.count })))
+          .map((item) => '<button class="chip' + (filterArtist === item.name ? ' chip--selected' : '') + '" data-filter="' + esc(item.name) + '">' + esc(item.label) + '</button>').join('') +
+        '</div>'
+      : '') +
     '<div class="row gap-8 cache-actions">' +
       '<div class="segmented segmented--sm" data-sort>' +
         [['recent', '最近'], ['size', '大小'], ['name', '名称']].map(([key, label]) =>
@@ -75,7 +96,9 @@ async function render(root) {
       '</div>' +
     '</div>' +
     (rows.length ? '<div class="list" data-cache-list>' + rows.map(rowHTML).join('') + '</div>'
-      : emptyState('download_done', '还没有缓存', '在曲目菜单里点「加入缓存队列」，缓存后可以离线播放与下载'));
+      : filterArtist
+        ? emptyState('filter_alt_off', '这个歌手没有缓存了', '换个筛选条件或清掉筛选')
+        : emptyState('download_done', '还没有缓存', '在曲目菜单里点「加入缓存队列」，缓存后可以离线播放与下载'));
 
   const meter = await storageLine();
   if (meter) {
@@ -86,6 +109,9 @@ async function render(root) {
   const profile = profileId;
   root.querySelectorAll('[data-sort] .segmented__item').forEach((button) => {
     button.addEventListener('click', () => { sortMode = button.dataset.value; render(root); });
+  });
+  root.querySelectorAll('[data-filter]').forEach((button) => {
+    button.addEventListener('click', () => { filterArtist = button.dataset.filter; render(root); });
   });
   root.querySelectorAll('[data-remove]').forEach((button) => {
     button.addEventListener('click', async (event) => {

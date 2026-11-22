@@ -56,8 +56,16 @@ class Player {
     this.profileId = profileId;
     const audio = this.audio;
 
-    audio.addEventListener('play', () => { store.patch('player', { playing: true }); this.startListenClock(); });
-    audio.addEventListener('pause', () => { store.patch('player', { playing: false }); this.stopListenClock(); });
+    audio.addEventListener('play', () => {
+      store.patch('player', { playing: true });
+      this.startListenClock();
+      this.syncMediaState('playing');
+    });
+    audio.addEventListener('pause', () => {
+      store.patch('player', { playing: false });
+      this.stopListenClock();
+      this.syncMediaState('paused');
+    });
     audio.addEventListener('waiting', () => store.patch('player', { loading: true }));
     audio.addEventListener('canplay', () => store.patch('player', { loading: false }));
     audio.addEventListener('playing', () => store.patch('player', { loading: false, error: null }));
@@ -68,6 +76,7 @@ class Player {
       const now = performance.now();
       if (now - this._lastTimeUpdate < 200) return;
       this._lastTimeUpdate = now;
+      this.syncMediaState(null);
       store.patch('player', { current: audio.currentTime });
       this.accumulateListen();
       if (this.profileId && store.state.player.track && this._recorded !== store.state.player.track.id + ':' + Math.floor(audio.currentTime / 20)) {
@@ -159,14 +168,40 @@ class Player {
   updateMediaSession(track) {
     if (!('mediaSession' in navigator) || !track) return;
     try {
-      const artwork = artworkFor(track);
+      // 多个尺寸的封面，锁屏/通知栏会自己挑合适的一张
+      const artwork = [];
+      [96, 240, 480].forEach((size) => {
+        const url = artworkFor(track, size);
+        if (url && !artwork.some((item) => item.src === url)) artwork.push({ src: url, sizes: size + 'x' + size });
+      });
+      if (!artwork.length) {
+        const url = artworkFor(track);
+        if (url) artwork.push({ src: url, sizes: '480x480' });
+      }
       navigator.mediaSession.metadata = new MediaMetadata({
         title: track.title,
         artist: track.artist,
         album: track.album || '',
-        artwork: artwork ? [{ src: artwork, sizes: '480x480', type: 'image/jpeg' }] : [],
+        artwork,
       });
+      this.syncMediaState(this.audio && this.audio.paused ? 'paused' : 'playing');
     } catch (_) { /* ignore */ }
+  }
+
+  /** 锁屏/通知栏的播放状态与进度 */
+  syncMediaState(state) {
+    if (!('mediaSession' in navigator)) return;
+    try { if (state) navigator.mediaSession.playbackState = state; } catch (_) { /* ignore */ }
+    try {
+      if (!navigator.mediaSession.setPositionState || !this.audio) return;
+      const duration = this.audio.duration;
+      if (!Number.isFinite(duration) || duration <= 0) return;
+      navigator.mediaSession.setPositionState({
+        duration,
+        position: Math.min(Math.max(this.audio.currentTime || 0, 0), duration),
+        playbackRate: this.audio.playbackRate || 1,
+      });
+    } catch (_) { /* 部分浏览器不支持 */ }
   }
 
   async playTrack(track, options = {}) {
@@ -200,6 +235,10 @@ class Player {
 
     try {
       const cached = await cacheGet(this.profileId, track.id);
+      if (!cached && typeof navigator !== 'undefined' && navigator.onLine === false) {
+        store.patch('player', { error: '离线中，这首还没有缓存', loading: false, playing: false });
+        return;
+      }
       let url = '';
       let sourceKey = 'cache';
       let sourceLabel = '本地缓存';
