@@ -370,7 +370,8 @@ export function songList(tracks, options = {}) {
 
 export function attachSongList(root, tracks, handlers = {}) {
   const byId = new Map(tracks.map((track) => [track.id, track]));
-  const list = root.querySelector('[data-songlist]');
+  // 时间线里每个分组本身就是一个 [data-songlist]，要能直接挂监听
+  const list = root.matches && root.matches('[data-songlist]') ? root : root.querySelector('[data-songlist]');
   if (!list) return;
 
   // 当前播放高亮跟着播放器状态走，列表不用重渲染
