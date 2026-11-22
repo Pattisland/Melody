@@ -23,6 +23,8 @@ export const DEFAULT_SETTINGS = {
   'prefs.lyricsSource': '',
   // 开始播放就自动展开全屏播放器（默认关）
   'prefs.autoFull': false,
+  // 封面大小档位：small / normal / large
+  'prefs.coverSize': 'normal',
   'prefs.cacheConcurrency': 2,
   'prefs.pageGutter': 154,
 };

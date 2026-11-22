@@ -64,6 +64,12 @@ function applyPrefs(settings) {
   const density = settings['prefs.density'] || 'comfortable';
   root.style.setProperty('--row-h', density === 'compact' ? '56px' : '64px');
   root.style.setProperty('--art-md', density === 'compact' ? '40px' : '48px');
+  // 封面大小档位：移动端列数 + 桌面端边长系数
+  const coverSize = settings['prefs.coverSize'] || 'normal';
+  const coverCols = coverSize === 'small' ? 5 : coverSize === 'large' ? 3 : 4;
+  const coverScale = coverSize === 'small' ? 0.86 : coverSize === 'large' ? 1.2 : 1;
+  root.style.setProperty('--cover-cols', String(coverCols));
+  root.style.setProperty('--cover-scale', String(coverScale));
   document.body.classList.toggle('reduce-motion', Boolean(settings['prefs.reduceMotion']));
 }
 

@@ -1421,14 +1421,14 @@ html.theme-transition *:not(.player):not(.sheet):not(.dialog):not(.menu--popover
 
 /* 移动端：封面再小一点，底栏图标垂直居中 */
 @media (max-width: 839px) {
-  .media-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
+  .media-grid { grid-template-columns: repeat(var(--cover-cols, 4), minmax(0, 1fr)); gap: 8px; }
   .home-card__scroll .media { max-width: none; }
   .media__title { font-size: var(--ts-body-small-size); }
   .media__sub { font-size: var(--ts-label-small-size); }
   .nav { align-items: stretch; padding: 6px 8px calc(6px + var(--safe-b)); }
-  .nav__item { height: auto; justify-content: center; gap: 3px; padding: 2px 0; }
-  .nav__icon { display: grid; place-items: center; height: 26px; line-height: 1; }
-  .nav__ind { margin-top: -30px; height: 30px; }
+  .nav__item { height: auto; justify-content: center; gap: 3px; padding: 0 0 11px; }
+  .nav__icon { display: grid; place-items: center; height: 24px; line-height: 1; }
+  .nav__ind { margin-top: -34px; height: 30px; }
 }
 
 /* 缓存管理 */

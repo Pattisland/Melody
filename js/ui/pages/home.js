@@ -111,7 +111,8 @@ function layoutTileGrids() {
     }
     // 74px 留给标题与副标题；列宽不能超过这个上限，否则文字会被卡片裁掉。
     // 在「不超过上限」的前提下取最大的列宽，同时保证一行正好铺满。
-    const maxSide = Math.max(88, Math.min(320, availH - 74));
+    const scale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cover-scale')) || 1;
+    const maxSide = Math.max(72, Math.min(340, Math.round((availH - 74) * scale)));
     let cols = 1;
     let colWidth = availW;
     for (let count = 1; count <= 12; count += 1) {

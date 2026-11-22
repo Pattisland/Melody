@@ -356,6 +356,12 @@ async function renderPrefs(root) {
     '<div class="group">' +
       '<div class="group__label">播放器</div>' +
       prefSwitch('prefs.blurBg', '模糊封面背景', '用当前封面的模糊图垫在全屏播放器后面', settings['prefs.blurBg'] !== false) +
+      '<div class="list-item" style="cursor:default"><div class="list-item__body">' +
+        '<div class="list-item__title">封面大小</div><div class="list-item__sub">首页与列表的封面档位</div></div></div>' +
+      '<div style="padding:0 20px 14px"><div class="segmented" data-cover-size style="width:100%">' +
+        [['small', '更小'], ['normal', '标准'], ['large', '更大']].map(([key, label]) =>
+          '<button class="segmented__item" data-value="' + key + '" aria-selected="' + ((settings['prefs.coverSize'] || 'normal') === key) + '">' + label + '</button>').join('') +
+      '</div></div>' +
       prefSwitch('prefs.autoFull', '开始播放自动全屏', '选中歌曲后直接展开播放器，不用再点迷你条', Boolean(settings['prefs.autoFull'])) +
       prefSwitch('prefs.notifyCache', '完成提示', '缓存与下载结束时提示一条', settings['prefs.notifyCache'] !== false) +
     '</div>' +
@@ -387,6 +393,9 @@ async function renderPrefs(root) {
 
   root.querySelectorAll('[data-pref]').forEach((input) => {
     input.addEventListener('change', () => set(input.dataset.pref, input.checked));
+  });
+  root.querySelectorAll('[data-cover-size] .segmented__item').forEach((button) => {
+    button.addEventListener('click', async () => { await set('prefs.coverSize', button.dataset.value); renderPrefs(root); });
   });
   root.querySelectorAll('[data-density] .segmented__item').forEach((button) => {
     button.addEventListener('click', async () => { await set('prefs.density', button.dataset.value); renderPrefs(root); });
