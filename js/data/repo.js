@@ -181,6 +181,13 @@ export async function toggleFavorite(profileId, track) {
   return true;
 }
 
+export async function removeFavorite(profileId, trackId) {
+  if (!profileId || !trackId) return false;
+  await idb.remove('favorites', profileId + ':' + trackId);
+  notifyData('favorite', { trackId, added: false });
+  return true;
+}
+
 export async function listFavorites(profileId) {
   const rows = await idb.byIndex('favorites', 'profileId', profileId);
   return rows.sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));

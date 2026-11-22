@@ -4,8 +4,9 @@ import { router } from '../../core/router.js';
 import { store } from '../../core/store.js';
 import { listHistory, listFavorites, listCached, listPlaylists, createPlaylist,
   listPlaylistItems, deletePlaylist, removeFromPlaylist, updatePlaylist,
-  movePlaylistItem } from '../../data/repo.js';
-import { songList, attachSongList, emptyState, toast, askText, openDialog } from '../components.js';
+  movePlaylistItem, removeFavorite, addToPlaylist } from '../../data/repo.js';
+import { songList, attachSongList, emptyState, toast, askText, openDialog, openActionMenu } from '../components.js';
+import { enqueue } from '../../player/queue.js';
 import { coverMarkup } from '../cover.js';
 import { openTrackMenu } from '../track-menu.js';
 import { openTrackInfo } from '../track-info.js';
@@ -123,18 +124,73 @@ function exportPlaylist(list, tracks) {
   toast('已导出「' + list.name + '」');
 }
 
+/* 列表状态：排序、多选（切换页面或歌单时重置） */
+let listSort = 'default';
+let picking = false;
+let picked = new Set();
+let entries = [];
+let detailKey = '';
+
+function resetListState(kind, playlistId) {
+  const key = kind + ':' + playlistId;
+  if (detailKey === key) return;
+  detailKey = key;
+  listSort = 'default';
+  picking = false;
+  picked = new Set();
+}
+
+function sortEntries(list) {
+  const rows = list.slice();
+  if (listSort === 'name') return rows.sort((a, b) => String(a.track.title || '').localeCompare(String(b.track.title || ''), 'zh'));
+  if (listSort === 'artist') return rows.sort((a, b) => String(a.track.artist || '').localeCompare(String(b.track.artist || ''), 'zh'));
+  if (listSort === 'duration') return rows.sort((a, b) => (b.track.duration || 0) - (a.track.duration || 0));
+  return rows;
+}
+
+function dayLabel(at) {
+  const date = new Date(at);
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const day = 86400000;
+  if (at >= startOfToday) return '今天';
+  if (at >= startOfToday - day) return '昨天';
+  if (at >= startOfToday - day * 7) return '本周';
+  return (date.getMonth() + 1) + '月' + date.getDate() + '日';
+}
+
+/** 最近播放用时间线（按天分组），其余列表按排序键展示 */
+function timelineGroups(list) {
+  const groups = [];
+  const index = new Map();
+  list.forEach((entry) => {
+    const label = dayLabel(entry.at || 0);
+    let group = index.get(label);
+    if (!group) { group = { label, rows: [] }; index.set(label, group); groups.push(group); }
+    group.rows.push(entry);
+  });
+  groups.sort((a, b) => (b.rows[0].at || 0) - (a.rows[0].at || 0));
+  return groups;
+}
+
 async function renderDetail(root, kind, playlistId) {
+  resetListState(kind, playlistId);
   const profileId = store.state.profileId;
+  entries = [];
   let tracks = [];
   let title = '';
   let playlist = null;
   let items = [];
   if (kind === 'recent') {
     title = '最近播放';
-    tracks = (await listHistory(profileId, 200)).map((row) => row.track);
+    const rows = await listHistory(profileId, 200);
+    entries = rows.map((row) => ({ track: row.track, at: row.playedAt || 0 }));
+    tracks = entries.map((entry) => entry.track);
   } else if (kind === 'favorites') {
     title = '我的喜欢';
-    tracks = (await listFavorites(profileId)).map((row) => row.track);
+    const rows = await listFavorites(profileId);
+    entries = rows.map((row) => ({ track: row.track, at: row.addedAt || 0 }));
+    tracks = entries.map((entry) => entry.track);
   } else if (kind === 'cache') {
     title = '我的缓存';
     const rows = await listCached(profileId);
@@ -146,7 +202,8 @@ async function renderDetail(root, kind, playlistId) {
     playlist = lists.find((row) => row.id === playlistId) || null;
     title = playlist ? playlist.name : '歌单';
     items = await listPlaylistItems(playlistId);
-    tracks = items.map((row) => row.track);
+    entries = items.map((row) => ({ track: row.track, at: row.addedAt || 0 }));
+    tracks = entries.map((row) => row.track);
     const rerender = () => {
       if (!root.isConnected) return;
       renderDetail(root, 'playlist', playlistId);
@@ -205,18 +262,77 @@ async function renderDetail(root, kind, playlistId) {
     }
   }
 
+  // 最近播放/我的喜欢没有头部块：重渲染前清空，避免列表叠加
+  if (kind !== 'playlist') root.innerHTML = '';
+  const sorted = sortEntries(entries);
+  const shown = sorted.map((entry) => entry.track);
+  const canRemove = kind === 'favorites' || (kind === 'playlist' && playlistId);
+  const playingId = store.state.player.track ? store.state.player.track.id : '';
+  const rerender = () => renderDetail(root, kind, playlistId);
+
   const host = document.createElement('div');
   if (!tracks.length) {
     host.innerHTML = emptyState(kind === 'cache' ? 'download_done' : 'music_note', '这里还是空的', kind === 'favorites' ? '在曲目菜单里点「收藏」' : kind === 'cache' ? '缓存后可以离线播放与下载' : '听过的歌会自动出现在这里');
-  } else {
-    host.innerHTML = songList(tracks, { playingId: store.state.player.track ? store.state.player.track.id : '' });
+    root.appendChild(host);
+    return;
   }
+
+  const toolbar = '<div class="lib-toolbar">' +
+    (picking
+      ? '<span class="lib-toolbar__count">已选 <b data-pick-count>' + picked.size + '</b> 首</span>' +
+        '<div class="row gap-8">' +
+          '<button class="btn btn--text btn--sm" data-bulk="cache">' + icon('download') + '缓存</button>' +
+          '<button class="btn btn--text btn--sm" data-bulk="playlist">' + icon('playlist_add') + '加入歌单</button>' +
+          (canRemove ? '<button class="btn btn--text btn--sm" data-bulk="remove">' + icon('delete') + '移除</button>' : '') +
+          '<button class="btn btn--text btn--sm" data-bulk="exit">取消</button>' +
+        '</div>'
+      : '<div class="segmented segmented--sm" data-sort>' +
+        [['default', '默认'], ['name', '名称'], ['artist', '歌手'], ['duration', '时长']].map(([key, label]) =>
+          '<button class="segmented__item" data-value="' + key + '" aria-selected="' + (listSort === key) + '">' + label + '</button>').join('') +
+        '</div>' +
+        '<div class="row gap-8" style="margin-left:auto">' +
+          '<button class="btn btn--text btn--sm" data-pick>' + icon('checklist') + '选择</button>' +
+        '</div>') +
+    '</div>';
+
+  const body = kind === 'recent'
+    ? '<div class="timeline">' + timelineGroups(sorted).map((group) =>
+        '<div class="timeline__day">' + esc(group.label) + '<span>' + group.rows.length + ' 首</span></div>' +
+        songList(group.rows.map((row) => row.track), { playingId })).join('') + '</div>'
+    : songList(shown, { playingId });
+
+  host.innerHTML = toolbar + body;
   root.appendChild(host);
 
-  attachSongList(host, tracks, {
-    onPlay: (track) => player.playTrack(track, { queue: tracks }),
+  const paintPicked = () => {
+    host.querySelectorAll('[data-track-id]').forEach((row) => {
+      const on = picked.has(row.dataset.trackId);
+      row.classList.toggle('is-picked', on);
+      let mark = row.querySelector('.pick-mark');
+      if (!on) { if (mark) mark.remove(); return; }
+      if (!mark) {
+        mark = document.createElement('span');
+        mark.className = 'pick-mark icon';
+        row.prepend(mark);
+      }
+      mark.textContent = 'check_circle';
+    });
+    const count = host.querySelector('[data-pick-count]');
+    if (count) count.textContent = String(picked.size);
+  };
+
+  const togglePick = (id) => {
+    if (picked.has(id)) picked.delete(id); else picked.add(id);
+    paintPicked();
+  };
+
+  const attach = (listHost, listTracks) => attachSongList(listHost, listTracks, {
+    onPlay: (track) => {
+      if (picking) { togglePick(track.id); return; }
+      player.playTrack(track, { queue: listTracks });
+    },
     onMore: (track, anchor, event) => {
-      const index = tracks.findIndex((row) => row.id === track.id);
+      const index = shown.findIndex((row) => row.id === track.id);
       const move = async (delta) => {
         const moved = await movePlaylistItem(playlistId, track.id, delta);
         if (!moved) { toast(delta < 0 ? '已经在最前面了' : '已经在最后面了'); return; }
@@ -226,7 +342,7 @@ async function renderDetail(root, kind, playlistId) {
         anchor, point: event,
         extra: kind === 'playlist' && playlistId ? [
           { icon: 'arrow_upward', label: '上移', disabled: index <= 0, onSelect: () => move(-1) },
-          { icon: 'arrow_downward', label: '下移', disabled: index < 0 || index >= tracks.length - 1, onSelect: () => move(1) },
+          { icon: 'arrow_downward', label: '下移', disabled: index < 0 || index >= shown.length - 1, onSelect: () => move(1) },
           {
             icon: 'playlist_remove',
             label: '从歌单移除',
@@ -242,6 +358,74 @@ async function renderDetail(root, kind, playlistId) {
       });
     },
     onInfo: (track) => openTrackInfo(track),
+  });
+
+  if (kind === 'recent') {
+    const groups = timelineGroups(sorted);
+    host.querySelectorAll('[data-songlist]').forEach((list, index) => {
+      const group = groups[index];
+      attach(list, group ? group.rows.map((row) => row.track) : shown);
+    });
+  } else {
+    attach(host, shown);
+  }
+  if (picking) paintPicked();
+
+  host.querySelectorAll('[data-sort] .segmented__item').forEach((button) => {
+    button.addEventListener('click', () => { listSort = button.dataset.value; rerender(); });
+  });
+  const pickButton = host.querySelector('[data-pick]');
+  if (pickButton) pickButton.addEventListener('click', () => { picking = true; picked = new Set(); rerender(); });
+  host.querySelectorAll('[data-bulk]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const action = button.dataset.bulk;
+      const selected = entries.filter((row) => picked.has(row.track.id)).map((row) => row.track);
+      if (action === 'exit') { picking = false; picked = new Set(); rerender(); return; }
+      if (!selected.length) { toast('先选几首'); return; }
+      if (action === 'cache') {
+        await enqueue(selected);
+        toast('已加入缓存队列 ' + selected.length + ' 首');
+        picking = false; picked = new Set(); rerender();
+        return;
+      }
+      if (action === 'remove') {
+        if (kind === 'favorites') {
+          for (const track of selected) await removeFavorite(profileId, track.id);
+          toast('已取消收藏 ' + selected.length + ' 首');
+        } else if (kind === 'playlist' && playlistId) {
+          for (const track of selected) await removeFromPlaylist(playlistId, track.id);
+          toast('已从歌单移除 ' + selected.length + ' 首');
+        }
+        picking = false; picked = new Set(); rerender();
+        return;
+      }
+      if (action === 'playlist') {
+        const lists = await listPlaylists(profileId);
+        openActionMenu({
+          title: '把 ' + selected.length + ' 首加入歌单',
+          items: lists.map((list) => ({
+            icon: 'queue_music',
+            label: list.name,
+            onSelect: async () => {
+              for (const track of selected) await addToPlaylist(list.id, track);
+              toast('已加入「' + list.name + '」');
+              picking = false; picked = new Set(); rerender();
+            },
+          })).concat([{
+            icon: 'add',
+            label: '新建歌单',
+            onSelect: async () => {
+              const name = await askText({ title: '新建歌单', label: '歌单名称', placeholder: '例如：夜里开车', confirmText: '创建' });
+              if (!name) return;
+              const list = await createPlaylist(profileId, name);
+              for (const track of selected) await addToPlaylist(list.id, track);
+              toast('已加入「' + list.name + '」');
+              picking = false; picked = new Set(); rerender();
+            },
+          }]),
+        });
+      }
+    });
   });
 }
 

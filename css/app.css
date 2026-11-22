@@ -1431,6 +1431,24 @@ html.theme-transition *:not(.player):not(.sheet):not(.dialog):not(.menu--popover
   .nav__ind { margin-top: -34px; height: 30px; }
 }
 
+/* 列表工具条 / 时间线 / 多选 */
+.lib-toolbar {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 0 4px 12px;
+}
+.lib-toolbar__count { font-size: var(--ts-body-medium-size); color: var(--md-sys-color-on-surface-variant); }
+.lib-toolbar__count b { color: var(--md-sys-color-primary); font-size: var(--ts-title-medium-size); }
+.timeline__day {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+  padding: 14px 12px 6px; font-size: var(--ts-label-large-size); font-weight: 600;
+  color: var(--md-sys-color-on-surface-variant);
+}
+.timeline__day:first-child { padding-top: 2px; }
+.timeline__day span { font-weight: 400; font-size: var(--ts-label-small-size); opacity: .8; }
+.list-item.is-picked { background: color-mix(in srgb, var(--md-sys-color-primary) 12%, transparent); }
+.list-item.is-picked .list-item__title { color: var(--md-sys-color-primary); }
+.pick-mark { flex: 0 0 auto; margin-right: 10px; color: var(--md-sys-color-primary); font-size: 22px; }
+
 /* 缓存管理 */
 .cache-search { margin-bottom: 12px; }
 .cache-actions { align-items: center; padding: 0 0 12px; flex-wrap: wrap; gap: 12px; }
