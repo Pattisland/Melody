@@ -74,8 +74,8 @@
   --art-lg: 56px;
   --art-xl: 88px;
 
-  --font-ui: "Melody Roboto", "HarmonyOS Sans SC", -apple-system, "PingFang SC", "Noto Sans SC", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
-  --font-num: ui-rounded, system-ui, sans-serif;
+  --font-ui: "Melody Jakarta", "Melody Noto SC", "HarmonyOS Sans SC", -apple-system, "PingFang SC", "Noto Sans SC", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+  --font-num: "Melody Jakarta", ui-rounded, system-ui, sans-serif;
 }
 
 @media (min-width: 840px) {

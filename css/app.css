@@ -774,8 +774,8 @@ body[data-paused="true"] .list-item__playing i { animation-play-state: paused; }
 }
 .home-head__title {
   margin: 0;
-  font-size: clamp(2.25rem, 5.2vw, 3.25rem);
-  font-weight: 700; letter-spacing: -.03em; line-height: 1.04;
+  font-size: clamp(2.5rem, 5.6vw, 3.5rem);
+  font-weight: 700; letter-spacing: -.02em; line-height: 1.06;
 }
 .home-head__tagline {
   margin-top: 6px;
@@ -1181,7 +1181,7 @@ html.theme-transition *:not(.player):not(.sheet):not(.dialog):not(.menu--popover
    桌面端适配：标题按 0.7 缩放、波形贯穿、板块自适应
    ========================================================================== */
 @media (min-width: 840px) {
-  .home-head__title { font-size: 2.25rem; letter-spacing: -.025em; line-height: 1.06; }
+  .home-head__title { font-size: 2.5rem; letter-spacing: -.02em; line-height: 1.08; }
 }
 /* 波形贯穿整个内容列（吃满页面内边距），但不越过侧边栏 */
 @media (min-width: 840px) {

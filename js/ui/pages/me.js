@@ -653,7 +653,7 @@ function renderAbout(root) {
     '<div class="group">' +
       '<div class="group__label">配色与排版</div>' +
       aboutRow('Material You', '用 Material Color Utilities 在本地计算 HCT 配色，三种变体；跟随系统深浅色，播放器可随封面取色') +
-      aboutRow('字体与图标', 'Roboto（本地打包，latin 子集）加系统中文字体栈，图标使用本地的 Material Icons Round') +
+      aboutRow('字体与图标', '拉丁字母与数字用 Plus Jakarta Sans，中文用 Noto Sans SC 的 GB2312 常用字子集，都在本地打包（SIL OFL 1.1）；图标使用本地的 Material Icons Round') +
     '</div>' +
     '<div class="group">' +
       '<div class="group__label">版本</div>' +

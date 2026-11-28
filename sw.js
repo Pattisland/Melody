@@ -1,10 +1,10 @@
 /* Melody service worker — 网络优先，离线回落缓存（离线首屏） */
-const CACHE = 'melody-v3';
+const CACHE = 'melody-v4';
 const SHELL = [
   './', './index.html', './manifest.webmanifest', './assets/icon.svg',
   './css/tokens.css', './css/tokens.generated.css', './css/fonts.css', './css/icons.css', './css/app.css',
-  './assets/fonts/roboto-latin-400.woff2', './assets/fonts/roboto-latin-500.woff2',
-  './assets/fonts/roboto-latin-700.woff2', './assets/fonts/material-icons-round.woff2',
+  // 拉丁字体很小，直接预缓存；中文子集约 1 MB，不塞进安装期，首次用到时由 fetch 事件按需缓存
+  './assets/fonts/jakarta-latin-var.woff2', './assets/fonts/material-icons-round.woff2',
   './vendor/mcu.js',
   './js/main.js',
   './js/core/util.js', './js/core/store.js', './js/core/router.js', './js/core/theme.js',
